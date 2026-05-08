@@ -443,31 +443,34 @@ tbody tr:last-child td { border-bottom: none; }
   <div class="topbar"></div>
   <div class="split-main">
     <div class="split-col" style="border-right:1px solid #e5e7eb">
-      <span class="label">The hardest engineering problem in zkVM design</span>
-      <h3>Memory Checking — <span style="color:#1d4ed8">proving every read is consistent</span></h3>
+      <span class="label">One of the hardest problems in zkVM design</span>
+      <h3>Memory Checking — <span style="color:#1d4ed8">proving your program didn't cheat</span></h3>
       <div class="rule"></div>
-      <p class="body" style="margin-bottom:14px">A program reads and writes millions of addresses in unpredictable order. How do you prove each read returns the <b>most recently written value</b> — without storing the full memory state in every row?</p>
-      <p class="body" style="margin-bottom:14px"><b>The timestamp trick (SP1):</b> Each memory row carries <code style="font-size:12px;color:#1d4ed8">clk_prev</code> — the clock of the last write to that address — and <code style="font-size:12px;color:#1d4ed8">clk_cur</code>. A constraint enforces <code style="font-size:12px;color:#dc2626">clk_prev &lt; clk_cur</code>. A single multiset argument then confirms every (addr, val, clk_prev) in reads appears in writes.</p>
-      <div class="note"><b>Cost: near zero.</b> One extra trace column + one grand product check. The naïve alternative — full memory state per row — would make proofs astronomically expensive.</div>
+      <p class="body" style="margin-bottom:18px">Imagine a program that reads and writes to millions of memory slots. The question SP1 must answer mathematically: <b>when the program read slot 42, did it get the correct value — the one that was last written there?</b></p>
+      <div class="bq" style="font-size:clamp(18px,2vw,24px);margin:0 0 18px">
+        Think of it like a bank account.<br>
+        <span style="color:#1d4ed8">Your balance must reflect the last transaction — not an old one.</span>
+      </div>
+      <p class="body">SP1 stamps every memory operation with a clock number. Every read proves: <b>"the value I got was written at clock T, and nothing was written to this address between T and now."</b> One mathematical check at the end confirms the entire memory history is consistent.</p>
     </div>
     <div class="split-col" style="background:#f9f8f5">
-      <p style="font-size:12px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6b7280;margin-bottom:16px">Offline memory checking construction</p>
-      <div style="border-left:3px solid #e5e7eb;padding-left:18px">
-        <div style="padding:12px 0;border-bottom:1px solid #f3f4f6">
-          <div style="font-size:11px;font-weight:700;color:#1d4ed8;font-family:'JetBrains Mono',monospace;margin-bottom:4px">Write log W</div>
-          <div style="font-size:14px;color:#374151">Every write: <code style="font-size:12px">(addr, val, clk)</code> + initial memory values</div>
+      <p style="font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;margin-bottom:20px">How it works — step by step</p>
+      <div style="border-left:3px solid #e5e7eb;padding-left:20px">
+        <div style="padding:14px 0;border-bottom:1px solid #f3f4f6">
+          <div style="font-size:16px;font-weight:700;color:#1d4ed8;margin-bottom:6px">① Every write is logged</div>
+          <div style="font-size:17px;color:#374151;line-height:1.6">Address + value + clock time → saved</div>
         </div>
-        <div style="padding:12px 0;border-bottom:1px solid #f3f4f6">
-          <div style="font-size:11px;font-weight:700;color:#7c3aed;font-family:'JetBrains Mono',monospace;margin-bottom:4px">Read log R</div>
-          <div style="font-size:14px;color:#374151">Every read: <code style="font-size:12px">(addr, val, clk_prev, clk_cur)</code></div>
+        <div style="padding:14px 0;border-bottom:1px solid #f3f4f6">
+          <div style="font-size:16px;font-weight:700;color:#7c3aed;margin-bottom:6px">② Every read records when it last saw a write</div>
+          <div style="font-size:17px;color:#374151;line-height:1.6">Address + value + <b>clock of last write</b> → saved</div>
         </div>
-        <div style="padding:12px 0;border-bottom:1px solid #f3f4f6">
-          <div style="font-size:11px;font-weight:700;color:#dc2626;font-family:'JetBrains Mono',monospace;margin-bottom:4px">Row constraint</div>
-          <div style="font-size:14px;color:#374151"><code style="font-size:12px">clk_prev &lt; clk_cur</code> for every read</div>
+        <div style="padding:14px 0;border-bottom:1px solid #f3f4f6">
+          <div style="font-size:16px;font-weight:700;color:#dc2626;margin-bottom:6px">③ Rule: last write must be in the past</div>
+          <div style="font-size:17px;color:#374151;line-height:1.6">Clock of last write &lt; Clock of this read ✓</div>
         </div>
-        <div style="padding:12px 0">
-          <div style="font-size:11px;font-weight:700;color:#059669;font-family:'JetBrains Mono',monospace;margin-bottom:4px">Global check</div>
-          <div style="font-size:14px;color:#374151">Every (addr, val, clk_prev) in R appears in W — one grand product argument</div>
+        <div style="padding:14px 0">
+          <div style="font-size:16px;font-weight:700;color:#059669;margin-bottom:6px">④ One final check ties it all together</div>
+          <div style="font-size:17px;color:#374151;line-height:1.6">Every read matches exactly one write in the log — mathematically proven</div>
         </div>
       </div>
     </div>
