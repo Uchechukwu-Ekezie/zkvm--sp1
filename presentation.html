@@ -269,40 +269,36 @@ tbody tr:last-child td { border-bottom: none; }
 
 
 <!-- ══════════════════════════════════════════════
-     SLIDE 3 · HOST / GUEST MODEL
+     SLIDE 3 · WHAT IS SP1 — SIMPLE ANALOGY
 ══════════════════════════════════════════════ -->
 <div class="slide bg-white">
   <div class="topbar"></div>
-  <div class="split-main">
-    <div class="split-col" style="border-right:1px solid #e5e7eb">
-      <span class="label">What we built — the model underneath everything</span>
-      <h3>Host vs Guest — <span style="color:#1d4ed8">what gets proved</span></h3>
-      <div class="rule"></div>
-      <p class="body" style="margin-bottom:14px">Every SP1 program splits into two halves. The <b>guest</b> runs inside the zkVM — every instruction is traced into polynomial constraints. The <b>host</b> controls the zkVM from outside: it supplies inputs, triggers proving, and receives the receipt.</p>
-      <p class="body" style="margin-bottom:14px">The API enforces the ZK boundary structurally. <code style="font-size:13px;color:#1d4ed8;font-family:'JetBrains Mono',monospace">io::read()</code> is private witness — enters the trace but is never committed. <code style="font-size:13px;color:#059669;font-family:'JetBrains Mono',monospace">io::commit()</code> is the public journal — the verifier sees exactly this, nothing else.</p>
-      <div class="note"><b>ZK is structural here, not disciplined.</b> You cannot accidentally leak private data — the API enforces the boundary at the type level. The theory behind why this works is what the next slides explain.</div>
-    </div>
-    <div class="split-col code-bg">
-      <p style="font-size:12px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6e7681;margin-bottom:14px">Our password verifier — guest program</p>
-      <div class="editor">
-        <div class="ebar"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div><span class="efn">zkpassword/program/src/main.rs</span></div>
-        <div class="ecode"><span class="cc">// GUEST — compiled to RISC-V ELF, proved by SP1</span>
-<span class="kw">use</span> sp1_zkvm::<span class="ty">io</span>;
-<span class="kw">use</span> sha2::{<span class="ty">Sha256</span>, <span class="ty">Digest</span>};
-
-<span class="kw">fn</span> <span class="fn">main</span>() {
-  <span class="cc">// Private witness — stays inside the zkVM</span>
-  <span class="kw">let</span> password: <span class="ty">Vec</span>&lt;<span class="ty">u8</span>&gt; = io::<span class="fn">read</span>();
-
-  <span class="cc">// Computation inside the proof</span>
-  <span class="kw">let</span> hash = <span class="ty">Sha256</span>::<span class="fn">digest</span>(&password);
-
-  <span class="cc">// Public journal — only this leaves the zkVM</span>
-  io::<span class="fn">commit</span>(&hash.<span class="fn">to_vec</span>());
-}</div>
+  <div class="main center">
+    <span class="label">Before we go deep — here is the simple picture</span>
+    <h2 style="color:#111827;max-width:900px;margin:0 auto 28px">SP1 is a machine that runs your code<br>and hands you a <span style="color:#1d4ed8">receipt that proves it ran correctly</span></h2>
+    <div class="rule c"></div>
+    <div style="display:grid;grid-template-columns:1fr 60px 1fr 60px 1fr;align-items:center;gap:0;margin:28px auto;max-width:860px">
+      <div style="background:#f9f8f5;border:2px solid #e5e7eb;border-radius:12px;padding:28px 24px;text-align:center">
+        <div style="font-size:38px;margin-bottom:12px">📝</div>
+        <div style="font-size:21px;font-weight:800;color:#111827;margin-bottom:8px">Your Code</div>
+        <div style="font-size:17px;color:#6b7280;line-height:1.5">Write normal Rust.<br>No cryptography needed.</div>
       </div>
-      <p style="font-size:13px;color:#6e7681;margin-top:14px;font-family:'JetBrains Mono',monospace;line-height:1.7">password → io::read()   → private witness<br>hash     → io::commit() → public journal<br><span style="color:#3fb950">Proof:   hash = SHA-256(password) ✓</span></p>
+      <div style="text-align:center;font-size:32px;color:#d1d5db">→</div>
+      <div style="background:#eff6ff;border:2px solid #1d4ed8;border-radius:12px;padding:28px 24px;text-align:center">
+        <div style="font-size:38px;margin-bottom:12px">⚙️</div>
+        <div style="font-size:21px;font-weight:800;color:#1d4ed8;margin-bottom:8px">SP1 zkVM</div>
+        <div style="font-size:17px;color:#374151;line-height:1.5">Runs your code.<br>Records every step.<br>Generates a proof.</div>
+      </div>
+      <div style="text-align:center;font-size:32px;color:#d1d5db">→</div>
+      <div style="background:#f0fdf4;border:2px solid #059669;border-radius:12px;padding:28px 24px;text-align:center">
+        <div style="font-size:38px;margin-bottom:12px">🧾</div>
+        <div style="font-size:21px;font-weight:800;color:#059669;margin-bottom:8px">The Receipt</div>
+        <div style="font-size:17px;color:#374151;line-height:1.5">Anyone can verify it.<br>No re-running the code.<br>Mathematics guarantees it.</div>
+      </div>
     </div>
+    <p class="body" style="color:#6b7280;max-width:700px;margin:0 auto;font-size:clamp(18px,2vw,24px)">
+      This is what we built on. Three programs. Three receipts. All verifiable.
+    </p>
   </div>
   <div class="footer">
     <span>Zero-Knowledge Virtual Machines</span>
@@ -317,22 +313,22 @@ tbody tr:last-child td { border-bottom: none; }
 <div class="slide bg-cream">
   <div class="topbar"></div>
   <div class="main">
-    <span class="label">This problem exists at internet scale</span>
-    <h2>Verification is the bottleneck<br>holding blockchain back</h2>
+    <span class="label">Why this technology matters right now</span>
+    <h2>Blockchain is slow because<br><span class="ac">every node re-runs everything</span></h2>
     <div class="rule"></div>
-    <p class="body">Every Ethereum node re-executes every transaction to verify it. Billions of machines. Trillions of redundant calculations. This is not bad engineering — it is a fundamental <b>verification problem.</b></p>
+    <p class="body">To check that a transaction is valid, every Ethereum node on earth runs it again from scratch. That is like requiring every person in a stadium to personally re-count the votes before trusting the result. <b>zkVMs solve this</b> — one proof, verified by anyone in milliseconds, forever.</p>
     <div class="stats">
       <div class="stat">
         <span class="n blue">15</span>
-        <div class="l">Ethereum transactions per second — every node re-runs everything</div>
+        <div class="l">Ethereum transactions per second — every single node re-executes every single one</div>
       </div>
       <div class="stat">
         <span class="n blk">24,000</span>
-        <div class="l">Visa transactions per second. The gap is entirely a verification problem.</div>
+        <div class="l">Visa transactions per second. The gap is not hardware — it is a verification design problem.</div>
       </div>
       <div class="stat">
         <span class="n red">1,600×</span>
-        <div class="l">The difference. Zero-knowledge proofs close this gap permanently.</div>
+        <div class="l">The gap zkVMs close. One proof replaces billions of redundant re-executions.</div>
       </div>
     </div>
   </div>
