@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Zero-Knowledge Virtual Machines — Ekezie & Goddswill</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ─── RESET ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #222;
+  overflow: hidden;
+  height: 100vh; width: 100vw;
+}
+
+/* ─── SLIDE ENGINE ─── */
+.deck { width: 100%; height: 100vh; position: relative; }
+.slide { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.3s ease; }
+.slide.active { opacity: 1; visibility: visible; pointer-events: auto; }
+
+/* ─── CONSISTENT SLIDE SHELL ─── */
+/* Every slide = topbar + main + footer. Heights: 6px + flex:1 + 44px */
+.topbar { width: 100%; height: 6px; background: #1d4ed8; flex-shrink: 0; }
+.topbar.light { background: rgba(255,255,255,0.15); }
+.main   { flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: center; padding: 40px 80px; }
+.main.center { align-items: center; text-align: center; }
+.footer { height: 44px; flex-shrink: 0; border-top: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; padding: 0 80px; }
+.footer span { font-size: 12px; color: #9ca3af; }
+.footer.inv { border-color: rgba(255,255,255,0.1); }
+.footer.inv span { color: rgba(255,255,255,0.3); }
+
+/* ─── BACKGROUND COLOURS ─── */
+.bg-white { background: #ffffff; }
+.bg-cream { background: #f9f8f5; }
+.bg-navy  { background: #0d1f3c; }
+.bg-dark  { background: #0a0a0a; }
+
+/* ─── SPLIT LAYOUT (half+half) ─── */
+.split-main { flex: 1; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; }
+.split-col  { display: flex; flex-direction: column; justify-content: center; padding: 40px 60px; overflow: hidden; }
+.split-col.code-bg { background: #0d1117; padding: 40px 44px; }
+.vdiv { width: 1px; background: #e5e7eb; flex-shrink: 0; }
+.vdiv.dark { background: rgba(255,255,255,0.08); }
+
+/* ─── TYPOGRAPHY ─── */
+.label {
+  display: block; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: #1d4ed8; margin-bottom: 16px;
+}
+.label.inv { color: rgba(255,255,255,0.5); }
+
+h1 {
+  font-size: clamp(40px, 6vw, 80px);
+  font-weight: 900; line-height: 1.05; letter-spacing: -0.025em;
+  color: #fff; margin-bottom: 22px;
+}
+h1 .ac { color: #60a5fa; }
+
+h2 {
+  font-size: clamp(30px, 4.2vw, 54px);
+  font-weight: 800; line-height: 1.1; letter-spacing: -0.02em;
+  color: #111827; margin-bottom: 16px;
+}
+h2.inv { color: #fff; }
+h2 .ac { color: #1d4ed8; }
+h2 .ac2 { color: #60a5fa; }
+
+h3 {
+  font-size: clamp(22px, 2.8vw, 36px);
+  font-weight: 700; line-height: 1.15; letter-spacing: -0.015em;
+  color: #111827; margin-bottom: 12px;
+}
+h3.inv { color: #fff; }
+
+p.body {
+  font-size: clamp(16px, 1.8vw, 21px);
+  line-height: 1.75; color: #4b5563;
+}
+p.body.inv { color: rgba(255,255,255,0.72); }
+p.body b, p.body strong { color: #111827; }
+p.body.inv b, p.body.inv strong { color: #fff; }
+p.body + p.body { margin-top: 14px; }
+
+.rule { width: 44px; height: 4px; background: #1d4ed8; border-radius: 2px; margin-bottom: 22px; }
+.rule.inv { background: rgba(255,255,255,0.35); }
+.rule.c   { margin-left: auto; margin-right: auto; }
+
+/* ─── NUMBERED LIST ─── */
+.nlist { list-style: none; margin-top: 6px; }
+.nlist li {
+  display: flex; gap: 18px; padding: 14px 0;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: clamp(15px, 1.7vw, 20px);
+  color: #374151; line-height: 1.65;
+}
+.nlist li:last-child { border-bottom: none; }
+.nlist li .n { font-size: 11px; font-weight: 700; color: #1d4ed8; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em; flex-shrink: 0; padding-top: 5px; min-width: 22px; }
+.nlist li b { color: #111827; }
+
+/* ─── STATS ROW ─── */
+.stats { display: flex; gap: 0; margin-top: 28px; }
+.stat { flex: 1; padding: 24px 28px; border-right: 1px solid #e5e7eb; }
+.stat:first-child { padding-left: 0; }
+.stat:last-child  { border-right: none; }
+.stat .n { font-size: clamp(44px, 6vw, 76px); font-weight: 900; letter-spacing: -0.03em; line-height: 1; display: block; margin-bottom: 10px; }
+.stat .n.blue { color: #1d4ed8; }
+.stat .n.blk  { color: #111827; }
+.stat .n.red  { color: #dc2626; }
+.stat .l { font-size: 15px; color: #6b7280; line-height: 1.5; }
+
+/* ─── PIPELINE ─── */
+.pipe { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 22px; }
+.pbox { border: 1px solid #e5e7eb; border-radius: 7px; padding: 11px 16px; text-align: center; min-width: 90px; }
+.pbox.on { border-color: #1d4ed8; background: #eff6ff; }
+.pbox .pt { font-size: 13px; font-weight: 700; color: #374151; }
+.pbox.on .pt { color: #1d4ed8; }
+.pbox .ps { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.parr { color: #d1d5db; font-size: 18px; }
+
+/* ─── THREE-COLUMN ROLE BOXES ─── */
+.role-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-top: 8px; }
+.role { border-top: 4px solid #e5e7eb; padding-top: 20px; }
+.role.blue   { border-color: #1d4ed8; }
+.role.purple { border-color: #7c3aed; }
+.role.green  { border-color: #059669; }
+.role .rtag { font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 10px; }
+.role.blue   .rtag { color: #1d4ed8; }
+.role.purple .rtag { color: #7c3aed; }
+.role.green  .rtag { color: #059669; }
+.role h3 { font-size: clamp(17px, 2vw, 24px); font-weight: 800; color: #111827; margin-bottom: 10px; }
+.role p  { font-size: clamp(13px, 1.45vw, 16px); color: #4b5563; line-height: 1.65; margin-bottom: 10px; }
+.role p b { color: #111827; }
+.role p:last-child { margin-bottom: 0; }
+
+/* ─── TABLE ─── */
+table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+thead th { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6b7280; padding: 10px 14px; text-align: left; border-bottom: 2px solid #e5e7eb; }
+tbody td { padding: 11px 14px; border-bottom: 1px solid #f3f4f6; font-size: clamp(13px, 1.4vw, 16px); color: #374151; }
+tbody tr:last-child td { border-bottom: none; }
+.ok   { color: #16a34a; font-weight: 700; }
+.fail { color: #dc2626; font-weight: 700; }
+.hi   { color: #111827; font-weight: 600; }
+.dim  { color: #9ca3af; }
+.bl   { color: #1d4ed8; font-weight: 700; }
+.am   { color: #d97706; font-weight: 600; }
+
+/* ─── PROGRAM CARDS ─── */
+.prog-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-top: 22px; }
+.prog { border-top: 3px solid #e5e7eb; padding: 20px 0 4px; }
+.prog.p1 { border-color: #1d4ed8; }
+.prog.p3 { border-color: #059669; }
+.prog .pn { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #9ca3af; margin-bottom: 8px; }
+.prog.p1 .pn { color: #1d4ed8; }
+.prog.p3 .pn { color: #059669; }
+.prog h3 { font-size: clamp(16px, 2vw, 22px); font-weight: 700; color: #111827; margin-bottom: 8px; }
+.prog p  { font-size: clamp(13px, 1.4vw, 16px); color: #6b7280; line-height: 1.6; }
+.prog .meta { font-size: 12px; color: #9ca3af; margin-top: 10px; font-family: 'JetBrains Mono', monospace; }
+
+/* ─── CODE EDITOR ─── */
+.editor { background: #0d1117; border-radius: 8px; overflow: hidden; border: 1px solid #30363d; }
+.ebar { background: #161b22; padding: 9px 14px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #30363d; }
+.dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.dr{background:#ff5f57;}.dy{background:#febc2e;}.dg{background:#28c840;}
+.efn { font-size: 11px; color: #8b949e; font-family: 'JetBrains Mono', monospace; margin-left: 8px; }
+.ecode { padding: 18px 20px; font-family: 'JetBrains Mono', monospace; font-size: clamp(12px, 1.3vw, 14px); line-height: 1.8; color: #e6edf3; white-space: pre; overflow: hidden; }
+.kw{color:#ff7b72;}.fn{color:#d2a8ff;}.ty{color:#79c0ff;}.sv{color:#3fb950;}.cc{color:#6e7681;}.mt{color:#ffa657;}
+
+/* ─── TERMINAL ─── */
+.term { background: #0a0a0a; border-radius: 8px; overflow: hidden; border: 1px solid #222; margin-top: 14px; }
+.tbar { background: #181818; padding: 9px 14px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #222; }
+.tfn { font-size: 11px; color: #555; font-family: 'JetBrains Mono', monospace; margin-left: 8px; }
+.tout { padding: 16px 18px; font-family: 'JetBrains Mono', monospace; font-size: clamp(12px, 1.3vw, 14px); line-height: 1.8; white-space: pre-wrap; }
+.tc{color:#4a90d9;}.tok{color:#22c55e;}.tdm{color:#555;}.thi{color:#fbbf24;}.tpu{color:#a78bfa;}.tw{color:#d1d5db;}
+
+/* ─── REAL-WORLD GRID ─── */
+.rw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 22px; }
+.rw { padding: 20px 0 20px 0; }
+.rw:nth-child(odd)  { padding-right: 32px; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+.rw:nth-child(even) { padding-left: 32px; border-bottom: 1px solid #e5e7eb; }
+.rw:nth-child(3)    { border-bottom: none; }
+.rw:nth-child(4)    { border-bottom: none; }
+.rw h3 { font-size: clamp(15px, 1.8vw, 20px); font-weight: 700; color: #111827; margin-bottom: 8px; }
+.rw h3.bl { color: #1d4ed8; }
+.rw p  { font-size: clamp(13px, 1.4vw, 16px); color: #6b7280; line-height: 1.65; }
+
+/* ─── BENCHMARK BARS ─── */
+.bench { margin-top: 18px; }
+.brow  { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.blbl  { font-size: 14px; color: #6b7280; width: 220px; flex-shrink: 0; }
+.btr   { flex: 1; background: #f3f4f6; border-radius: 3px; height: 16px; overflow: hidden; }
+.bf    { height: 100%; border-radius: 3px; }
+.bvl   { font-size: 13px; color: #6b7280; width: 64px; text-align: right; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; }
+
+/* ─── BLOCKQUOTE ─── */
+.bq { border-left: 4px solid #1d4ed8; padding: 4px 0 4px 24px; margin: 20px 0; font-size: clamp(19px, 2.4vw, 30px); font-weight: 600; line-height: 1.45; color: #111827; max-width: 800px; }
+.bq.inv { border-color: rgba(255,255,255,0.35); color: rgba(255,255,255,0.9); }
+
+/* ─── NOTE BOX ─── */
+.note { background: #eff6ff; border-left: 3px solid #1d4ed8; border-radius: 0 6px 6px 0; padding: 13px 18px; margin-top: 18px; font-size: clamp(14px, 1.5vw, 17px); color: #374151; line-height: 1.65; }
+.note b { color: #111827; }
+
+/* ─── NAVIGATION ─── */
+.prev-btn, .next-btn {
+  position: fixed; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  font-size: 28px; color: #ccc; z-index: 99;
+  padding: 14px 10px; transition: color 0.15s;
+  line-height: 1;
+}
+.prev-btn:hover, .next-btn:hover { color: #1d4ed8; }
+.prev-btn { left: 4px; }
+.next-btn { right: 4px; }
+.pgnum { position: fixed; bottom: 52px; right: 24px; font-size: 11px; color: #aaa; font-family: 'JetBrains Mono', monospace; z-index: 99; }
+.progress { position: fixed; bottom: 0; left: 0; height: 3px; background: #1d4ed8; z-index: 99; transition: width 0.3s; }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 1 · TITLE
+══════════════════════════════════════════════ -->
+<div class="slide bg-navy">
+  <div class="topbar light"></div>
+  <div class="main center" style="padding:48px 100px">
+    <span class="label inv">Web3Bridge Academy · ZK Engineering Track · May 2026</span>
+    <h1>Zero-Knowledge<br><span class="ac">Virtual Machines</span></h1>
+    <p class="body inv" style="max-width:620px;margin:0 auto 36px;font-size:clamp(16px,1.9vw,22px)">
+      Architecture, Proof Systems, and the Future<br>of Verifiable Computation
+    </p>
+    <div style="width:56px;height:1px;background:rgba(255,255,255,0.15);margin:0 auto 32px"></div>
+    <p style="font-size:17px;font-weight:700;color:rgba(255,255,255,0.9)">Ekezie Uchenna &nbsp;·&nbsp; Goddswill Idolor</p>
+    <p style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:6px">Web3Bridge Academy · ZK Engineering Track</p>
+    <p style="font-size:12px;color:rgba(255,255,255,0.2);margin-top:28px;letter-spacing:0.08em">&#8592; &#8594; arrow keys or Space to navigate</p>
+  </div>
+  <div class="footer inv">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 2 · OPENING QUESTION
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="main center">
+    <span class="label">The question we are answering today</span>
+    <h1 style="color:#111827;font-size:clamp(36px,5.5vw,70px);max-width:880px;margin:0 auto 24px">
+      Can you prove you know a secret<br><span style="color:#1d4ed8">without revealing the secret?</span>
+    </h1>
+    <p class="body" style="margin:0 auto;font-size:clamp(17px,2vw,23px);color:#6b7280;max-width:640px">
+      Most people say no.<br>
+      <strong>Mathematics has said yes since 1989.</strong><br>
+      That is the foundation of everything we built.
+    </p>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 3 · HOST / GUEST MODEL
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="split-main">
+    <div class="split-col" style="border-right:1px solid #e5e7eb">
+      <span class="label">What we built — the model underneath everything</span>
+      <h3>Host vs Guest — <span style="color:#1d4ed8">what gets proved</span></h3>
+      <div class="rule"></div>
+      <p class="body" style="margin-bottom:14px">Every SP1 program splits into two halves. The <b>guest</b> runs inside the zkVM — every instruction is traced into polynomial constraints. The <b>host</b> controls the zkVM from outside: it supplies inputs, triggers proving, and receives the receipt.</p>
+      <p class="body" style="margin-bottom:14px">The API enforces the ZK boundary structurally. <code style="font-size:13px;color:#1d4ed8;font-family:'JetBrains Mono',monospace">io::read()</code> is private witness — enters the trace but is never committed. <code style="font-size:13px;color:#059669;font-family:'JetBrains Mono',monospace">io::commit()</code> is the public journal — the verifier sees exactly this, nothing else.</p>
+      <div class="note"><b>ZK is structural here, not disciplined.</b> You cannot accidentally leak private data — the API enforces the boundary at the type level. The theory behind why this works is what the next slides explain.</div>
+    </div>
+    <div class="split-col code-bg">
+      <p style="font-size:12px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6e7681;margin-bottom:14px">Our password verifier — guest program</p>
+      <div class="editor">
+        <div class="ebar"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div><span class="efn">zkpassword/program/src/main.rs</span></div>
+        <div class="ecode"><span class="cc">// GUEST — compiled to RISC-V ELF, proved by SP1</span>
+<span class="kw">use</span> sp1_zkvm::<span class="ty">io</span>;
+<span class="kw">use</span> sha2::{<span class="ty">Sha256</span>, <span class="ty">Digest</span>};
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+  <span class="cc">// Private witness — stays inside the zkVM</span>
+  <span class="kw">let</span> password: <span class="ty">Vec</span>&lt;<span class="ty">u8</span>&gt; = io::<span class="fn">read</span>();
+
+  <span class="cc">// Computation inside the proof</span>
+  <span class="kw">let</span> hash = <span class="ty">Sha256</span>::<span class="fn">digest</span>(&password);
+
+  <span class="cc">// Public journal — only this leaves the zkVM</span>
+  io::<span class="fn">commit</span>(&hash.<span class="fn">to_vec</span>());
+}</div>
+      </div>
+      <p style="font-size:13px;color:#6e7681;margin-top:14px;font-family:'JetBrains Mono',monospace;line-height:1.7">password → io::read()   → private witness<br>hash     → io::commit() → public journal<br><span style="color:#3fb950">Proof:   hash = SHA-256(password) ✓</span></p>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 4 · THE SCALE OF THE PROBLEM
+══════════════════════════════════════════════ -->
+<div class="slide bg-cream">
+  <div class="topbar"></div>
+  <div class="main">
+    <span class="label">This problem exists at internet scale</span>
+    <h2>Verification is the bottleneck<br>holding blockchain back</h2>
+    <div class="rule"></div>
+    <p class="body">Every Ethereum node re-executes every transaction to verify it. Billions of machines. Trillions of redundant calculations. This is not bad engineering — it is a fundamental <b>verification problem.</b></p>
+    <div class="stats">
+      <div class="stat">
+        <span class="n blue">15</span>
+        <div class="l">Ethereum transactions per second — every node re-runs everything</div>
+      </div>
+      <div class="stat">
+        <span class="n blk">24,000</span>
+        <div class="l">Visa transactions per second. The gap is entirely a verification problem.</div>
+      </div>
+      <div class="stat">
+        <span class="n red">1,600×</span>
+        <div class="l">The difference. Zero-knowledge proofs close this gap permanently.</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 5 · THE FOUR ZK PROPERTIES
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="main">
+    <span class="label">Theory · GMR 1989 + Practical SNARK/STARK Extensions</span>
+    <h2>A zero-knowledge proof has <span class="ac">four properties</span></h2>
+    <div class="rule"></div>
+    <ul class="nlist">
+      <li><div class="n">01</div><div><b>Completeness.</b> &nbsp;If the statement is true, an honest prover can always convince an honest verifier. A correct claim is always provable.</div></li>
+      <li><div class="n">02</div><div><b>Soundness.</b> &nbsp;If the statement is false, no cheating prover can produce a valid proof. Mathematical truth cannot be forged.</div></li>
+      <li><div class="n">03</div><div><b>Zero-Knowledge.</b> &nbsp;The verifier learns nothing beyond the truth of the claim. No private data leaks — not even partially.</div></li>
+      <li><div class="n">04</div><div><b>Succinctness.</b> &nbsp;The proof is small and verifiable in milliseconds, regardless of how long the original computation took. Added by SNARK/STARK constructions — the property that makes zkVMs practical at scale.</div></li>
+    </ul>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 6 · WHAT IS A zkVM
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="main">
+    <span class="label">The solution</span>
+    <h2>A zkVM proves an <span class="ac">entire program</span></h2>
+    <div class="rule"></div>
+    <p class="body" style="margin-bottom:20px">Run any code. Get a <b>cryptographic receipt.</b> The verifier checks the receipt in milliseconds — never re-runs the program, never sees the private inputs. The mathematics guarantees correctness.</p>
+    <div class="pipe">
+      <div class="pbox"><div class="pt">Your Code</div><div class="ps">Rust / C / Go</div></div>
+      <div class="parr">→</div>
+      <div class="pbox on"><div class="pt">Executor</div><div class="ps">runs + traces</div></div>
+      <div class="parr">→</div>
+      <div class="pbox on"><div class="pt">Arithmetizer</div><div class="ps">AIR constraints</div></div>
+      <div class="parr">→</div>
+      <div class="pbox on"><div class="pt">STARK Prover</div><div class="ps">FRI · BabyBear</div></div>
+      <div class="parr">→</div>
+      <div class="pbox"><div class="pt">Proof</div><div class="ps">compact receipt</div></div>
+      <div class="parr">→</div>
+      <div class="pbox"><div class="pt">Verifier</div><div class="ps">milliseconds ✓</div></div>
+    </div>
+    <div class="note" style="margin-top:22px">
+      <b>The key distinction from a normal VM:</b> A normal VM executes code and returns a result you must trust. A zkVM executes code and returns a result <b>plus a proof</b> — verifiable by anyone, without trusting the machine that ran the code.
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 7 · ARITHMETIZATION
+══════════════════════════════════════════════ -->
+<div class="slide bg-cream">
+  <div class="topbar"></div>
+  <div class="main" style="padding:36px 80px">
+    <span class="label">The mathematical core of a zkVM</span>
+    <h2>Arithmetization — execution becomes <span class="ac">polynomial constraints</span></h2>
+    <div class="rule"></div>
+    <p class="body" style="margin-bottom:16px">After the executor traces every instruction, arithmetization converts that trace into polynomial equations. If any row is wrong, at least one polynomial fails to equal zero — the proof is rejected. This is how mathematics enforces computational correctness.</p>
+    <div class="role-grid">
+      <div class="role blue">
+        <div class="rtag">AIR — used by SP1</div>
+        <h3>Algebraic<br>Intermediate Repr.</h3>
+        <p>Constraints between <b>adjacent rows</b>:<br><code style="font-size:12px">P(rowᵢ, rowᵢ₊₁) = 0</code></p>
+        <p>Natural fit for step-by-step execution. SP1, RISC Zero, and Cairo all use AIR. The <code style="font-size:11px">add.rs</code> constraint we read in the source is exactly this.</p>
+      </div>
+      <div class="role purple">
+        <div class="rtag">R1CS — Groth16</div>
+        <h3>Rank-1 Constraint<br>System</h3>
+        <p>Each constraint:<br><code style="font-size:12px">(a·x) ⊙ (b·x) = (c·x)</code></p>
+        <p>Powers Groth16. Every branch and loop requires multiplicative overhead — inefficient for VM execution traces. Rarely used in modern zkVMs.</p>
+      </div>
+      <div class="role green">
+        <div class="rtag">PLONKish — Halo2</div>
+        <h3>Custom Gate<br>Arithmetization</h3>
+        <p>Generalises R1CS with <b>arbitrary custom gates</b> per row. Efficient range checks, lookups, bitwise ops. Used by zkSync Boojum and Scroll.</p>
+      </div>
+    </div>
+    <div class="note" style="margin-top:14px">
+      <b>Why AIR wins for RISC-V zkVMs:</b> P(rowᵢ, rowᵢ₊₁) = 0 directly models "state at cycle i+1 follows correctly from state at cycle i." Every opcode gets one chip. SP1's AddChip enforces: result = op_b + op_c, PC += 4, clock += 8, register reads consistent. One wrong value anywhere → non-zero polynomial → proof rejected.
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 8 · MEMORY CHECKING
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="split-main">
+    <div class="split-col" style="border-right:1px solid #e5e7eb">
+      <span class="label">The hardest engineering problem in zkVM design</span>
+      <h3>Memory Checking — <span style="color:#1d4ed8">proving every read is consistent</span></h3>
+      <div class="rule"></div>
+      <p class="body" style="margin-bottom:14px">A program reads and writes millions of addresses in unpredictable order. How do you prove each read returns the <b>most recently written value</b> — without storing the full memory state in every row?</p>
+      <p class="body" style="margin-bottom:14px"><b>The timestamp trick (SP1):</b> Each memory row carries <code style="font-size:12px;color:#1d4ed8">clk_prev</code> — the clock of the last write to that address — and <code style="font-size:12px;color:#1d4ed8">clk_cur</code>. A constraint enforces <code style="font-size:12px;color:#dc2626">clk_prev &lt; clk_cur</code>. A single multiset argument then confirms every (addr, val, clk_prev) in reads appears in writes.</p>
+      <div class="note"><b>Cost: near zero.</b> One extra trace column + one grand product check. The naïve alternative — full memory state per row — would make proofs astronomically expensive.</div>
+    </div>
+    <div class="split-col" style="background:#f9f8f5">
+      <p style="font-size:12px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6b7280;margin-bottom:16px">Offline memory checking construction</p>
+      <div style="border-left:3px solid #e5e7eb;padding-left:18px">
+        <div style="padding:12px 0;border-bottom:1px solid #f3f4f6">
+          <div style="font-size:11px;font-weight:700;color:#1d4ed8;font-family:'JetBrains Mono',monospace;margin-bottom:4px">Write log W</div>
+          <div style="font-size:14px;color:#374151">Every write: <code style="font-size:12px">(addr, val, clk)</code> + initial memory values</div>
+        </div>
+        <div style="padding:12px 0;border-bottom:1px solid #f3f4f6">
+          <div style="font-size:11px;font-weight:700;color:#7c3aed;font-family:'JetBrains Mono',monospace;margin-bottom:4px">Read log R</div>
+          <div style="font-size:14px;color:#374151">Every read: <code style="font-size:12px">(addr, val, clk_prev, clk_cur)</code></div>
+        </div>
+        <div style="padding:12px 0;border-bottom:1px solid #f3f4f6">
+          <div style="font-size:11px;font-weight:700;color:#dc2626;font-family:'JetBrains Mono',monospace;margin-bottom:4px">Row constraint</div>
+          <div style="font-size:14px;color:#374151"><code style="font-size:12px">clk_prev &lt; clk_cur</code> for every read</div>
+        </div>
+        <div style="padding:12px 0">
+          <div style="font-size:11px;font-weight:700;color:#059669;font-family:'JetBrains Mono',monospace;margin-bottom:4px">Global check</div>
+          <div style="font-size:14px;color:#374151">Every (addr, val, clk_prev) in R appears in W — one grand product argument</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 9 · RECURSION AND CONTINUATIONS
+══════════════════════════════════════════════ -->
+<div class="slide bg-cream">
+  <div class="topbar"></div>
+  <div class="main" style="padding:36px 80px">
+    <span class="label">How SP1 handles programs of unlimited length</span>
+    <h2>Recursion & Continuations — <span class="ac">no ceiling on program length</span></h2>
+    <div class="rule"></div>
+    <p class="body" style="margin-bottom:14px">A STARK proof for N cycles grows as O(log²N). For a billion-cycle program, even polylogarithmic growth is a problem. SP1 uses <b>continuations</b>: slice the program into 16M–64M cycle segments, prove each independently, then recursively aggregate into one fixed-size final proof.</p>
+    <div style="background:#0d1117;border-radius:8px;border:1px solid #30363d;padding:16px 22px;font-family:'JetBrains Mono',monospace;font-size:clamp(12px,1.3vw,14px);line-height:1.9;color:#e6edf3;margin-bottom:18px"><span style="color:#6e7681">// Final proof: constant size regardless of N</span>
+<span style="color:#79c0ff">Proof_final</span> = Prove(
+  Verify(<span style="color:#3fb950">Proof_seg_1</span>) ∧  <span style="color:#6e7681">// first 64M cycles</span>
+  Verify(<span style="color:#3fb950">Proof_seg_2</span>) ∧  <span style="color:#6e7681">// next 64M cycles</span>
+  Verify(<span style="color:#3fb950">Proof_seg_N</span>)    <span style="color:#6e7681">// ... N segments</span>
+)</div>
+    <div class="role-grid" style="margin-top:0">
+      <div class="role blue">
+        <div class="rtag">SP1 / RISC Zero</div>
+        <h3>Continuation-Based</h3>
+        <p>Segment → STARK proof → recursive aggregation. One final Groth16 wrap for cheap on-chain verification. Arbitrary program length. No ceiling.</p>
+      </div>
+      <div class="role purple">
+        <div class="rtag">Nova / HyperNova</div>
+        <h3>Folding Schemes</h3>
+        <p>Incrementally fold instances without full recursion. Elegant theory; today's systems (Nexus) have larger proofs and slower generation than STARK continuations.</p>
+      </div>
+      <div class="role green">
+        <div class="rtag">Production Impact</div>
+        <h3>Why It Matters</h3>
+        <p>Proving an Ethereum block = millions of EVM instructions → multiple continuation segments → one aggregated receipt. This is why SP1 can prove full Ethereum blocks at all.</p>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 10 · FRI-STARK PIPELINE AND BABYBEAR
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="main" style="padding:36px 80px">
+    <span class="label">The proof generation engine — Plonky3, SP1's backend</span>
+    <h2>FRI-STARK Pipeline — <span class="ac">how SP1 builds a proof</span></h2>
+    <div class="rule"></div>
+    <div class="rw-grid" style="margin-top:12px">
+      <div class="rw">
+        <h3 class="bl">Step 1 — Trace Commitment</h3>
+        <p>Interpolate the execution trace as polynomials over BabyBear. Commit via a Merkle tree over a low-degree extension field. The prover now holds a commitment to "this is what my program did."</p>
+      </div>
+      <div class="rw">
+        <h3 class="bl">Step 2 — Constraint Composition</h3>
+        <p>Combine all AIR constraints into one quotient polynomial Q(x). Q(x) = 0 on all rows if and only if every instruction executed correctly. Q(x) is committed.</p>
+      </div>
+      <div class="rw">
+        <h3 class="bl">Step 3 — FRI Proximity Proof</h3>
+        <p>The computationally heavy step. Prover convinces verifier Q(x) has low degree — it's a real polynomial, not arbitrary data. Achieved via FRI: repeated polynomial folding + Merkle openings.</p>
+      </div>
+      <div class="rw">
+        <h3 class="bl">Step 4 — Query Phase</h3>
+        <p>Verifier sends random challenges. Prover opens committed polynomials at those points with Merkle proofs. 128-bit security requires ~50 queries. This finalises the binding.</p>
+      </div>
+    </div>
+    <div class="note" style="margin-top:16px">
+      <b>Why BabyBear (p = 2³¹ − 2²⁷ + 1)?</b> &nbsp;Fits in a 32-bit word — no 64-bit overflow handling. CPUs and GPUs run 32-bit arithmetic at near-native speed. Goldilocks prime (64-bit): 2× overhead. BN254 (256-bit): ~10× overhead. BabyBear is a core engineering reason SP1 outperforms older systems.
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 11 · MAJOR zkVM COMPARISON
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="main" style="padding:36px 80px">
+    <span class="label">The landscape — major implementations as of 2026</span>
+    <h2>How the leading <span class="ac">zkVMs compare</span></h2>
+    <div class="rule"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>zkVM</th><th>ISA</th><th>Proof System</th><th>Language</th><th>Trusted Setup</th><th>Status</th><th>Key Strength</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="background:#eff6ff"><td class="bl">SP1 ★</td><td>RISC-V 32</td><td>Plonky3 / FRI</td><td>Rust, C, Go</td><td class="ok">None (STARK)</td><td class="ok">Production</td><td><b>Best developer experience</b></td></tr>
+        <tr><td class="hi">RISC Zero</td><td>RISC-V 32</td><td>STARK + Groth16</td><td>Rust, C++</td><td class="ok">None (STARK)</td><td class="ok">Production</td><td>Formal verification, 3 GB memory</td></tr>
+        <tr><td class="hi">Airbender</td><td>RISC-V 32</td><td>STARK</td><td>Rust, C</td><td class="ok">None (STARK)</td><td class="ok">Production</td><td>1 GPU proves Ethereum block in 35s</td></tr>
+        <tr><td class="hi">Cairo / Stwo</td><td>Cairo (ZK-native)</td><td>Circle STARKs</td><td>Cairo / Sierra</td><td class="ok">None (STARK)</td><td class="ok">Production</td><td>Write-once memory — most efficient</td></tr>
+        <tr><td class="hi">Jolt</td><td>RISC-V 32</td><td>Spartan + Lasso</td><td>Rust</td><td class="ok">None</td><td class="am">Beta</td><td>Lookup-based — theoretical speed</td></tr>
+        <tr><td class="hi">Nexus</td><td>RISC-V 32</td><td>Stwo (STARK)</td><td>Rust</td><td class="ok">None</td><td class="dim">Experimental</td><td>Fully open, formally specified</td></tr>
+      </tbody>
+    </table>
+    <div class="note" style="margin-top:14px">
+      <b>Why we chose SP1:</b> Best developer experience, fully open source, active production use by Polygon, Celestia and Avail, and the source code is structured clearly enough to study and build on directly.
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE · THE zkVM TRILEMMA
+══════════════════════════════════════════════ -->
+<div class="slide bg-cream">
+  <div class="topbar"></div>
+  <div class="main">
+    <span class="label">The central design tension every zkVM must resolve</span>
+    <h2>The zkVM Trilemma — <span class="ac">no system achieves all three</span></h2>
+    <div class="rule"></div>
+    <div class="role-grid">
+      <div class="role blue">
+        <div class="rtag">Speed</div>
+        <h3>Proving Performance</h3>
+        <p>Fast proof generation. Real-time for Ethereum blocks. Requires efficient field arithmetic (BabyBear), GPU parallelism, precompiles, STARK-based parallelism.</p>
+        <p><b>Optimised by:</b> SP1 Hypercube, Airbender, Brevis Pico.</p>
+      </div>
+      <div class="role purple">
+        <div class="rtag">Security</div>
+        <h3>Proof Soundness</h3>
+        <p>No trusted setup. Post-quantum secure. Formally verified circuits. Resistance to soundness bugs, range-check gaps, and memory consistency errors.</p>
+        <p><b>Optimised by:</b> RISC Zero (ZIRGEN formal verification), Nexus (formal specification).</p>
+      </div>
+      <div class="role green">
+        <div class="rtag">Generality</div>
+        <h3>Developer Experience</h3>
+        <p>Any program, any language, existing libraries. No custom DSL. Full RISC-V ISA including complex memory, branches, loops. Write normal Rust, get a proof.</p>
+        <p><b>Optimised by:</b> SP1, RISC Zero. Cairo sacrifices this — you must write Cairo.</p>
+      </div>
+    </div>
+    <div class="note" style="margin-top:14px">
+      <b>SP1's position:</b> Maximum generality + strong speed via precompiles and GPU — at slightly higher per-cycle overhead than ZK-native ISAs. Jolt bets on lookup-based speed but sacrifices GPU support and production readiness. Cairo maximises speed but requires a custom language. The trilemma is why every architectural choice is a tradeoff — and why we chose SP1 for our implementation.
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE · zkVM vs zkCOPROCESSOR
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="main" style="padding:36px 80px">
+    <span class="label">Two paradigms for deploying ZK in production</span>
+    <h2>zkVM vs <span class="ac">zkCoprocessor</span></h2>
+    <div class="rule"></div>
+    <p class="body" style="margin-bottom:16px">"A zkVM is trustless AWS Lambda — run any code, get a proof. A zkCoprocessor is a blockchain API with proofs — pre-built, optimised for known tasks, plug and play."</p>
+    <table>
+      <thead>
+        <tr><th>Dimension</th><th>zkVM</th><th>zkCoprocessor</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><b>Generality</b></td><td>Arbitrary programs — any custom logic</td><td>Specific pre-configured computation types</td></tr>
+        <tr><td><b>Integration</b></td><td>Compile &amp; prove your own guest program</td><td>SDK or API call — no proof system knowledge</td></tr>
+        <tr><td><b>Performance</b></td><td>General overhead; benefits from GPU clusters</td><td>Highly optimised for target task; lower cost</td></tr>
+        <tr><td><b>Use case fit</b></td><td>Novel logic, AI inference, custom algorithms</td><td>DeFi analytics, identity, historical state queries</td></tr>
+        <tr><td><b>Examples</b></td><td class="bl">SP1, RISC Zero, Cairo, Airbender</td><td class="dim">Brevis, Axiom, Herodotus, Lagrange</td></tr>
+      </tbody>
+    </table>
+    <div class="note" style="margin-top:14px">
+      <b>What we built maps directly to the zkVM paradigm:</b> Our three programs implement novel computation — password hashing, age threshold checking, multi-criteria KYC — with no pre-built coprocessor available. We had to write the guest logic and prove it directly on SP1. In a production DeFi system, a coprocessor like Axiom would handle high-frequency pre-defined queries faster and cheaper. Both paradigms are valid; the choice depends on how novel your computation is.
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE · INSIDE SP1 SOURCE CODE
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="split-main">
+    <div class="split-col" style="background:#f9f8f5;border-right:1px solid #e5e7eb">
+      <span class="label">We cloned and read the actual source</span>
+      <h3>Inside SP1 v6.1.0 — <span style="color:#1d4ed8">four layers</span></h3>
+      <div class="rule" style="margin-bottom:18px"></div>
+      <p class="body" style="margin-bottom:18px;font-size:clamp(14px,1.5vw,17px)">The machine runs your program and records every instruction. AIR chips convert those events into polynomial constraints. If a single instruction was wrong, the constraint fails — the proof is rejected.</p>
+      <div style="border-left:3px solid #e5e7eb;padding-left:16px;margin-top:4px">
+        <div style="padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="font-size:11px;font-weight:700;color:#1d4ed8;font-family:'JetBrains Mono',monospace">01</span> &nbsp;<span style="font-size:14px;font-weight:700;color:#111">Opcodes</span> &nbsp;<span style="font-size:12px;color:#9ca3af;font-family:'JetBrains Mono',monospace">opcode.rs</span></div>
+        <div style="padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="font-size:11px;font-weight:700;color:#1d4ed8;font-family:'JetBrains Mono',monospace">02</span> &nbsp;<span style="font-size:14px;font-weight:700;color:#111">CoreVM</span> &nbsp;<span style="font-size:12px;color:#9ca3af;font-family:'JetBrains Mono',monospace">vm.rs</span></div>
+        <div style="padding:10px 0;border-bottom:1px solid #f3f4f6"><span style="font-size:11px;font-weight:700;color:#1d4ed8;font-family:'JetBrains Mono',monospace">03</span> &nbsp;<span style="font-size:14px;font-weight:700;color:#111">ExecutionRecord</span> &nbsp;<span style="font-size:12px;color:#9ca3af;font-family:'JetBrains Mono',monospace">record.rs</span></div>
+        <div style="padding:10px 0"><span style="font-size:11px;font-weight:700;color:#1d4ed8;font-family:'JetBrains Mono',monospace">04</span> &nbsp;<span style="font-size:14px;font-weight:700;color:#111">AIR Chips</span> &nbsp;<span style="font-size:12px;color:#9ca3af;font-family:'JetBrains Mono',monospace">alu/add_sub/add.rs</span></div>
+      </div>
+    </div>
+    <div class="split-col code-bg">
+      <p style="font-size:12px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6e7681;margin-bottom:14px">The ZK constraint — add.rs line 202</p>
+      <div class="editor">
+        <div class="ebar"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div><span class="efn">crates/core/machine/src/alu/add_sub/add.rs</span></div>
+        <div class="ecode"><span class="cc">// Every ADD instruction must satisfy these constraints</span>
+<span class="kw">impl</span>&lt;AB&gt; <span class="fn">Air</span>&lt;AB&gt; <span class="kw">for</span> AddChip {
+  <span class="kw">fn</span> <span class="fn">eval</span>(&self, builder: &<span class="kw">mut</span> AB) {
+
+    <span class="cc">// result must equal op_b + op_c</span>
+    AddOperation::<span class="mt">eval</span>(builder, op_input);
+
+    <span class="cc">// PC must increment by 4 each cycle</span>
+    <span class="cc">// Clock must increment by 8 each cycle</span>
+    CPUState::<span class="mt">eval</span>(builder, cpu_state);
+
+    <span class="cc">// Register reads must be consistent</span>
+    RTypeReader::<span class="mt">eval</span>(builder, reader_input);
+  }
+  <span class="cc">// If any constraint ≠ 0 → proof rejected</span>
+}</div>
+      </div>
+      <p style="font-size:13px;color:#6e7681;margin-top:16px;font-family:'JetBrains Mono',monospace;line-height:1.6">This is where ZK happens.<br>Every ADD has a chip. Every chip has constraints.<br>The STARK prover checks all of them at once.</p>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE · SP1 PRECOMPILE PERFORMANCE
+══════════════════════════════════════════════ -->
+<div class="slide bg-cream">
+  <div class="topbar"></div>
+  <div class="main" style="padding:36px 80px">
+    <span class="label">Precompile choice is a proving decision, not a software decision</span>
+    <h2>SP1 Precompiles — <span class="ac">5–10× cycle reduction</span></h2>
+    <div class="rule"></div>
+    <p class="body" style="margin-bottom:16px">SP1 intercepts specific function calls and replaces the naïve RISC-V trace with a hand-optimised AIR chip. The cryptographic semantics are identical — the proof is still correct. The cycle count plummets. Choosing the wrong crate version silently costs you the speedup.</p>
+    <table>
+      <thead>
+        <tr><th>Operation</th><th>Naïve RISC-V cycles</th><th>With SP1 precompile</th><th>Speedup</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>SHA-256 (64 bytes)</td><td class="dim">~2,000</td><td class="bl">~200</td><td class="ok">10×</td></tr>
+        <tr><td>Keccak-256 (64 bytes)</td><td class="dim">~5,000</td><td class="bl">~500</td><td class="ok">10×</td></tr>
+        <tr><td>secp256k1 ECDSA verify</td><td class="dim">~500,000</td><td class="bl">~50,000</td><td class="ok">10×</td></tr>
+        <tr><td>ed25519 verify</td><td class="dim">~300,000</td><td class="bl">~40,000</td><td class="ok">7.5×</td></tr>
+        <tr><td>BN254 pairing</td><td class="dim">~2,000,000</td><td class="bl">~200,000</td><td class="ok">10×</td></tr>
+      </tbody>
+    </table>
+    <div class="note" style="margin-top:14px">
+      <b>Our result:</b> ZK Password Verifier without the precompile = ~28,000 cycles. With SP1's patched <code style="font-size:13px;color:#1d4ed8;font-family:'JetBrains Mono',monospace">sha2</code> crate routing to the SHA-256 precompile = <b>2,748 cycles</b>. A 10× reduction from one dependency version. Not an optimisation pass — a build configuration decision. This is what makes ZK programming different from normal software engineering.
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE · OUR THREE PROGRAMS
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="main">
+    <span class="label">Our implementation — built on SP1 v6.1.0 from source</span>
+    <h2>Three programs. <span class="ac">Three real proofs.</span></h2>
+    <div class="rule"></div>
+    <p class="body" style="margin-bottom:4px">We did not use the quickstart template. We cloned the repository, read the codebase, and built directly on the real proving infrastructure. Every proof here is fully cryptographically verifiable.</p>
+    <div class="prog-grid">
+      <div class="prog p1">
+        <div class="pn">Program 01</div>
+        <h3>ZK Password Verifier</h3>
+        <p>Prove you know a secret password using SHA-256. The verifier sees only the hash — never the password.</p>
+        <div class="meta">2,748 cycles · ~10s proof time · SHA-256 precompile</div>
+      </div>
+      <div class="prog">
+        <div class="pn">Program 02</div>
+        <h3>ZK Age Verifier</h3>
+        <p>Prove you meet a minimum age requirement without revealing your birth year or actual age to anyone.</p>
+        <div class="meta">1,703 cycles · ~10s proof time · zkKYC pattern</div>
+      </div>
+      <div class="prog p3">
+        <div class="pn">Program 03</div>
+        <h3>ZK Human Verifier</h3>
+        <p>Three criteria, five subjects — age, credit score, citizenship. All personal data hidden. All results proven.</p>
+        <div class="meta">5 subjects · 3 checks each · selective disclosure</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 11 · DEMO 1 · ZK PASSWORD VERIFIER
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="split-main">
+    <div class="split-col" style="border-right:1px solid #e5e7eb">
+      <span class="label">Program 01 · Live Demo</span>
+      <h3>ZK Password Verifier</h3>
+      <div class="rule"></div>
+      <p class="body" style="margin-bottom:14px">The guest program reads a secret password as a <b>private input</b> — it is never committed to the proof. It hashes it with SHA-256 and commits only the hash as the public output.</p>
+      <p class="body" style="margin-bottom:14px">SP1's patched <code style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#1d4ed8">sha2</code> crate routes through the SHA-256 precompile — <b>10× fewer cycles</b> than a naïve implementation.</p>
+      <p class="body">The verifier receives the hash. They cannot reverse it. The proof guarantees the prover knows the original value.</p>
+      <div class="note"><b>2,748 cycles</b> with the precompile vs ~28,000 without. A direct 10× saving in proof time.</div>
+    </div>
+    <div class="split-col" style="background:#0a0a0a">
+      <div class="term" style="margin-top:0">
+        <div class="tbar"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div><span class="tfn">zkpassword/script — prove mode</span></div>
+        <div class="tout"><span class="tc">$</span> <span class="tw">cargo run --release -- \
+    --prove --password "zk-masterclass-2024"</span>
+
+<span class="tdm">Password:  </span><span class="thi">████████  ← hidden from verifier</span>
+<span class="tdm">Generating ZK proof inside SP1...</span>
+
+<span class="tok">Proof generated!</span>
+
+<span class="tdm">Public output (hash):</span>
+<span class="tpu">0xffeac3c39129deca79a5e8368df147a8
+  6785453ba8c4968bfe15f809f8173887</span>
+
+<span class="tok">Proof verified! ✓</span>
+
+  → Verifier sees:  the hash only
+  → Password:       <span class="tok">never revealed</span>
+  → Cycles:         <span class="thi">2,748</span>
+  → Time:           <span class="thi">~10 seconds (CPU)</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 12 · DEMO 2 · ZK AGE VERIFIER
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="split-main">
+    <div class="split-col" style="border-right:1px solid #e5e7eb">
+      <span class="label">Program 02 · Live Demo</span>
+      <h3>ZK Age Verifier</h3>
+      <div class="rule"></div>
+      <p class="body" style="margin-bottom:14px"><b>Private input:</b> birth year. <b>Public inputs:</b> current year (2026) and minimum age (18). The zkVM computes the age, checks the threshold, and commits only a boolean result.</p>
+      <p class="body" style="margin-bottom:14px">The verifier learns one thing: <b>eligible — yes or no.</b> They cannot determine your actual age or birth year from the proof receipt.</p>
+      <p class="body">This is the exact pattern used in <b>zkKYC systems in DeFi</b> — prove you passed compliance without handing over your personal documents.</p>
+    </div>
+    <div class="split-col" style="background:#0a0a0a">
+      <div class="term" style="margin-top:0">
+        <div class="tbar"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div><span class="tfn">zkage/script — prove mode</span></div>
+        <div class="tout"><span class="tc">$</span> <span class="tw">cargo run --release -- \
+    --prove --birth-year 1995</span>
+
+  [PRIVATE]  Birth year  : <span class="thi">████</span>
+  [PUBLIC]   Year        : <span class="tw">2026</span>
+  [PUBLIC]   Minimum age : <span class="tw">18+</span>
+
+<span class="tdm">Generating ZK proof inside SP1...</span>
+
+  RESULT : <span class="tok">✅  ELIGIBLE</span>
+  Claim  : Person is 18+ as of 2026
+  Age    : <span class="thi">████  (cryptographically hidden)</span>
+
+<span class="tok">VERIFICATION PASSED ✓</span>
+
+  → Birth year: <span class="tok">never revealed</span>
+  → Cycles:     <span class="thi">1,703</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 13 · DEMO 3 · ZK HUMAN VERIFIER
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="main" style="padding:36px 80px">
+    <span class="label">Program 03 · Live Demo</span>
+    <h2>ZK Human Verifier — <span class="ac">5 subjects, 3 checks, all values hidden</span></h2>
+    <div class="rule"></div>
+    <p class="body" style="margin-bottom:16px">Three checks per subject: age ≥ 18, credit score ≥ 600, registered citizen. The verifier sees only ✅/❌ per check — never the actual age, score, or citizen ID. Every result is cryptographically proven on SP1.</p>
+    <table>
+      <thead>
+        <tr><th>Subject</th><th>Age ≥ 18</th><th>Credit ≥ 600</th><th>Registered</th><th>Final Result</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="hi">Alice</td><td class="ok">✅ Pass</td><td class="ok">✅ Pass</td><td class="ok">✅ Pass</td><td class="ok">VERIFIED</td><td class="dim">All criteria met</td></tr>
+        <tr><td class="hi">Bob</td><td class="fail">❌ Fail</td><td class="ok">✅ Pass</td><td class="ok">✅ Pass</td><td class="fail">REJECTED</td><td class="dim">Underage</td></tr>
+        <tr><td class="hi">Charlie</td><td class="ok">✅ Pass</td><td class="fail">❌ Fail</td><td class="ok">✅ Pass</td><td class="fail">REJECTED</td><td class="dim">Credit below 600</td></tr>
+        <tr><td class="hi">Diana</td><td class="ok">✅ Pass</td><td class="ok">✅ Pass</td><td class="fail">❌ Fail</td><td class="fail">REJECTED</td><td class="dim">Not on whitelist</td></tr>
+        <tr><td class="hi">Eve</td><td class="ok">✅ Pass</td><td class="fail">❌ Fail</td><td class="fail">❌ Fail</td><td class="fail">REJECTED</td><td class="dim">Credit + citizenship</td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <b>What the verifier receives:</b> Five sets of four booleans, plus a proof each was computed correctly from private data against the agreed rules. The actual age, credit score, and citizen ID are never part of the proof.
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE · REAL-WORLD APPLICATIONS (BLOCKCHAIN)
+══════════════════════════════════════════════ -->
+<div class="slide bg-cream">
+  <div class="topbar"></div>
+  <div class="main" style="padding:36px 80px">
+    <span class="label">Where zkVMs are deployed in production today — blockchain</span>
+    <h2>Real-world applications — <span class="ac">blockchain infrastructure</span></h2>
+    <div class="rule"></div>
+    <div class="rw-grid" style="margin-top:14px">
+      <div class="rw">
+        <h3 class="bl">Layer 2 Scaling — zkRollups</h3>
+        <p><b>zkSync Era, Polygon zkEVM, Scroll</b> execute transactions off-chain and post one validity proof to Ethereum L1. One proof covers thousands of transactions, verified in milliseconds. Unlike optimistic rollups, there is no 7-day challenge window — cryptographic finality is instant. zkSync processes thousands of TPS vs Ethereum L1's 15.</p>
+      </div>
+      <div class="rw">
+        <h3>Ethereum L1 Real-Time Proving</h3>
+        <p>The Ethereum Foundation's target: prove each L1 block in under 12 seconds so validators can verify by checking a proof, not re-executing. First achieved October 2025 by <b>Brevis Pico</b> (6.9s, 64 GPUs). <b>SP1 Hypercube</b>: 10.3s. <b>Airbender</b>: 35s on a single H100. This would allow a 10–100× increase in L1 throughput.</p>
+      </div>
+      <div class="rw">
+        <h3>Cross-Chain Bridges &amp; Light Clients</h3>
+        <p>Traditional bridges use multi-sig federations — trusted and hackable. zkVM light clients prove one chain's block headers to another with mathematics only, no committee. <b>Celestia</b> DA attestation proofs, <b>IBC</b> light client proofs, and <b>EigenLayer AVS</b> all use this pattern. Polygon and Avail use <b>SP1</b> for cross-chain infrastructure.</p>
+      </div>
+      <div class="rw">
+        <h3>Privacy Identity &amp; Compliance — our pattern</h3>
+        <p><b>zkKYC:</b> prove you passed identity verification without showing your passport. <b>Private voting:</b> prove your vote is valid without revealing your choice. <b>Anonymous DeFi lending:</b> prove creditworthiness without revealing your balance sheet. This is exactly the pattern in our ZK Age and ZK Human Verifier — provable facts, zero data exposure.</p>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE · REAL-WORLD APPLICATIONS (BEYOND BLOCKCHAIN)
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="main" style="padding:36px 80px">
+    <span class="label">Where zkVMs are deployed in production today — beyond blockchain</span>
+    <h2>Real-world applications — <span class="ac">outside of crypto</span></h2>
+    <div class="rule"></div>
+    <div class="rw-grid" style="margin-top:14px">
+      <div class="rw">
+        <h3 class="bl">Verifiable AI Inference (ZKML)</h3>
+        <p>As AI becomes critical infrastructure, a trust gap emerges: how does a user know a provider ran the claimed model on the claimed input without tampering? <b>RISC Zero's zkVM</b> has been used to prove transformer inference. <b>Giza</b> (built on Cairo) specialises in on-chain AI. Today: proving classification networks and recommendation engines. Trajectory: increasingly capable models as provers speed up.</p>
+      </div>
+      <div class="rw">
+        <h3>On-Chain Gaming with Hidden State</h3>
+        <p>zkVMs enable on-chain games where moves are proved valid without revealing the player's full board state. Chess, poker, strategy games. A player can prove "I moved my knight legally" without revealing where all their pieces are. <b>Dark Forest</b> (Ethereum) pioneered this category — a real-time strategy game where your location is a private ZK input. The entire game runs trustlessly on-chain.</p>
+      </div>
+      <div class="rw">
+        <h3>Supply Chain &amp; Data Provenance</h3>
+        <p>A pharmaceutical company can prove a drug batch was stored at the correct temperature throughout its supply chain — without revealing commercially sensitive routing or supplier information. A financial institution can prove its trading algorithms executed within regulatory bounds — without revealing proprietary strategy. "Proof of correct computation over private data" is a general pattern applicable across industries.</p>
+      </div>
+      <div class="rw">
+        <h3>Scientific Computing &amp; Auditable Pipelines</h3>
+        <p>Clinical trial results, financial model outputs, and government statistics all suffer from the same problem: results are published but the computation is trusted, not verified. zkVMs allow any computational pipeline to produce a proof of correct execution — auditors verify the proof, not the raw data. The data stays private; the result is mathematically guaranteed.</p>
+      </div>
+    </div>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 15 · BENCHMARKS
+══════════════════════════════════════════════ -->
+<div class="slide bg-white">
+  <div class="topbar"></div>
+  <div class="main">
+    <span class="label">The rate of progress</span>
+    <h2><span class="ac">35 minutes → 6.9 seconds</span><br>in 12 months</h2>
+    <div class="rule"></div>
+    <p class="body" style="margin-bottom:20px">The Ethereum Foundation's target: <b>under 12 seconds per Ethereum block.</b> First achieved October 2025. A 300× improvement in one year — one of the fastest performance curves in applied cryptography history.</p>
+    <div class="bench">
+      <div class="brow"><div class="blbl">Brevis Pico (64 GPUs)</div><div class="btr"><div class="bf" style="width:100%;background:#1d4ed8"></div></div><div class="bvl" style="color:#1d4ed8">6.9 s</div></div>
+      <div class="brow"><div class="blbl">SP1 Hypercube (multi-GPU)</div><div class="btr"><div class="bf" style="width:82%;background:#3b82f6"></div></div><div class="bvl">10.3 s</div></div>
+      <div class="brow"><div class="blbl">Airbender (1 × H100)</div><div class="btr"><div class="bf" style="width:60%;background:#93c5fd"></div></div><div class="bvl">35 s</div></div>
+      <div class="brow"><div class="blbl">RISC Zero v2 (GPU)</div><div class="btr"><div class="bf" style="width:52%;background:#bfdbfe"></div></div><div class="bvl">44 s</div></div>
+      <div class="brow"><div class="blbl">SP1 CPU — our setup</div><div class="btr"><div class="bf" style="width:28%;background:#e5e7eb"></div></div><div class="bvl">~4 min</div></div>
+      <div class="brow"><div class="blbl">RISC Zero v1 (2024)</div><div class="btr"><div class="bf" style="width:2%;background:#f3f4f6"></div></div><div class="bvl">35 min</div></div>
+    </div>
+    <p style="font-size:14px;color:#9ca3af;margin-top:14px">Our programs prove in ~10s on CPU — the correct local development baseline with no GPU hardware required. Each is a fully verifiable ZK proof.</p>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 16 · WHAT WE LEARNED
+══════════════════════════════════════════════ -->
+<div class="slide bg-cream">
+  <div class="topbar"></div>
+  <div class="main">
+    <span class="label">What the build actually taught us — things no slide covers</span>
+    <h2>Lessons from building on real infrastructure</h2>
+    <div class="rule"></div>
+    <ul class="nlist">
+      <li><div class="n">01</div><div><b>The precompile is a build dependency, not an optimisation.</b> &nbsp;We didn't "enable" it. We used SP1's patched <code style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#1d4ed8">sha2</code> crate, which routes automatically. The wrong crate version silently costs 10× more cycles. Nothing warns you.</div></li>
+      <li><div class="n">02</div><div><b>SP1 updated from v6.0.0 to v6.1.0 mid-setup.</b> &nbsp;Missing Go for gnark FFI. Missing protoc for gRPC. These are real build errors from real infrastructure — not toy toolchain problems. We fixed every one. This is what "production software" actually means.</div></li>
+      <li><div class="n">03</div><div><b>Reading add.rs closed the loop.</b> &nbsp;Every AIR constraint tutorial made sense abstractly. Line 202 of SP1's <code style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#1d4ed8">add.rs</code> made it concrete — result = op_b + op_c, PC += 4, clock += 8. The gap between understanding and knowing only closes with primary source.</div></li>
+      <li><div class="n">04</div><div><b>ZK correctness is a compiler property, not a runtime check.</b> &nbsp;If your program compiles and runs in SP1, the ZK boundary is already enforced. There is no "ZK mode" to enable. The API makes it impossible to get it wrong — which is the real engineering achievement.</div></li>
+    </ul>
+  </div>
+  <div class="footer">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 17 · THE FUTURE
+══════════════════════════════════════════════ -->
+<div class="slide bg-navy">
+  <div class="topbar light"></div>
+  <div class="main">
+    <span class="label inv">The trajectory of this technology</span>
+    <h2 class="inv">Today, TLS encrypts every web request.<br>You never think about it. <span class="ac2">It just works.</span></h2>
+    <div class="rule inv"></div>
+    <div class="bq inv">
+      The trajectory of zkVMs points to the same destiny.<br>
+      Every program on an untrusted machine will come with a proof.<br>
+      You will never think about it. But it will always be there.
+    </div>
+    <div class="stats" style="margin-top:28px">
+      <div class="stat" style="border-color:rgba(255,255,255,0.1)">
+        <span class="n" style="color:#60a5fa">300×</span>
+        <div class="l" style="color:rgba(255,255,255,0.4)">Speed improvement in 12 months · 2024 to 2025</div>
+      </div>
+      <div class="stat" style="border-color:rgba(255,255,255,0.1)">
+        <span class="n" style="color:#34d399">6.9s</span>
+        <div class="l" style="color:rgba(255,255,255,0.4)">Ethereum full block proving time · October 2025</div>
+      </div>
+      <div class="stat" style="border-color:rgba(255,255,255,0.1)">
+        <span class="n" style="color:#fff">∞</span>
+        <div class="l" style="color:rgba(255,255,255,0.4)">Programs provable in Rust today with no cryptography knowledge</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer inv">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SLIDE 18 · THANK YOU
+══════════════════════════════════════════════ -->
+<div class="slide bg-navy">
+  <div class="topbar light"></div>
+  <div class="main center">
+    <span class="label inv">Web3Bridge Academy · ZK Engineering Track · May 2026</span>
+    <h1 style="font-size:clamp(30px,4.8vw,62px);max-width:860px;margin:0 auto 20px">
+      Zero knowledge means: I can prove I know something,<br>without telling you <span class="ac">what I know.</span>
+    </h1>
+    <div style="width:44px;height:2px;background:rgba(255,255,255,0.2);margin:0 auto 22px"></div>
+    <p class="body inv" style="max-width:640px;margin:0 auto 32px;font-size:clamp(15px,1.7vw,19px)">
+      We did not just read about this.<br>
+      We cloned the source. We read the code. We hit the build errors. We fixed them.<br>
+      We built three working ZK proofs on the actual SP1 infrastructure.
+    </p>
+    <p style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-bottom:22px">
+      ZK Password &nbsp;·&nbsp; ZK Age &nbsp;·&nbsp; ZK Human Verifier &nbsp;·&nbsp; SP1 v6.1.0
+    </p>
+    <div style="width:56px;height:1px;background:rgba(255,255,255,0.1);margin:0 auto 22px"></div>
+    <p style="font-size:18px;font-weight:700;color:rgba(255,255,255,0.9)">Ekezie Uchenna &nbsp;&nbsp;·&nbsp;&nbsp; Goddswill Idolor</p>
+    <p style="font-size:13px;color:rgba(255,255,255,0.35);margin-top:6px">Web3Bridge Academy · ZK Engineering Track</p>
+    <p style="font-size:14px;color:#60a5fa;margin-top:26px;font-weight:600">Thank you — questions welcome</p>
+  </div>
+  <div class="footer inv">
+    <span>Zero-Knowledge Virtual Machines</span>
+    <span>Ekezie & Goddswill · Web3Bridge 2026</span>
+  </div>
+</div>
+
+
+</div><!-- /deck -->
+
+<button class="prev-btn" onclick="go(cur-1)">&#8249;</button>
+<button class="next-btn" onclick="go(cur+1)">&#8250;</button>
+<div class="pgnum" id="pgnum">1 / 18</div>
+<div class="progress" id="progress"></div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const N = slides.length;
+let cur = 0;
+
+function go(n) {
+  slides[cur].classList.remove('active');
+  cur = (n + N) % N;
+  slides[cur].classList.add('active');
+  document.getElementById('pgnum').textContent = (cur + 1) + ' / ' + N;
+  document.getElementById('progress').style.width = ((cur + 1) / N * 100) + '%';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(cur + 1); }
+  if (e.key === 'ArrowLeft')                   { e.preventDefault(); go(cur - 1); }
+});
+
+let t0 = 0;
+document.addEventListener('touchstart', e => t0 = e.touches[0].clientX);
+document.addEventListener('touchend', e => {
+  const dx = t0 - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 50) go(cur + (dx > 0 ? 1 : -1));
+});
+
+slides[0].classList.add('active');
+document.getElementById('progress').style.width = (1 / N * 100) + '%';
+</script>
+</body>
+</html>

@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zero-Knowledge Virtual Machines: Architecture, Systems, and the Future of Verifiable Computation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap');
+
+  :root {
+    --ink: #1a1a1a;
+    --ink-mid: #3d3d3d;
+    --ink-light: #666;
+    --ink-faint: #999;
+    --rule: #d4d0c8;
+    --rule-light: #e8e5df;
+    --accent: #1a3a6b;
+    --accent-mid: #2a5298;
+    --bg: #faf9f6;
+    --bg-off: #f3f1ec;
+    --bg-dark: #1e1e2e;
+    --green: #0f5132;
+    --green-bg: #d1e7dd;
+    --amber: #664d03;
+    --amber-bg: #fff3cd;
+    --red: #58151c;
+    --red-bg: #f8d7da;
+    --blue-bg: #cfe2ff;
+    --blue-text: #084298;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--serif);
+    font-size: 11pt;
+    line-height: 1.85;
+    color: var(--ink);
+    background: var(--bg);
+    padding: 0;
+  }
+
+  .page-wrap {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 60px 80px 100px;
+    background: #fff;
+    min-height: 100vh;
+    box-shadow: 0 0 60px rgba(0,0,0,0.06);
+  }
+
+  /* ── HEADER ── */
+  .paper-header {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 32px;
+    margin-bottom: 36px;
+    text-align: center;
+  }
+  .paper-venue {
+    font-family: var(--sans);
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+  }
+  .paper-title {
+    font-family: var(--serif);
+    font-size: 24pt;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .paper-subtitle {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 13pt;
+    color: var(--ink-light);
+    margin-bottom: 28px;
+  }
+  .paper-author {
+    font-family: var(--sans);
+    font-size: 10.5pt;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .paper-affil {
+    font-family: var(--sans);
+    font-size: 9pt;
+    color: var(--ink-light);
+    margin-bottom: 20px;
+  }
+  .paper-meta {
+    font-family: var(--sans);
+    font-size: 8.5pt;
+    color: var(--ink-faint);
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .paper-meta span { display: flex; align-items: center; gap: 5px; }
+
+  /* ── ABSTRACT ── */
+  .abstract-block {
+    background: var(--bg-off);
+    border-left: 3px solid var(--accent);
+    padding: 20px 24px;
+    margin: 0 0 40px;
+    border-radius: 0 4px 4px 0;
+  }
+  .abstract-label {
+    font-family: var(--sans);
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .abstract-block p {
+    font-size: 10pt;
+    line-height: 1.75;
+    color: var(--ink-mid);
+    margin-bottom: 8px;
+  }
+  .abstract-block p:last-child { margin-bottom: 0; }
+  .keywords {
+    margin-top: 12px;
+    font-family: var(--sans);
+    font-size: 8.5pt;
+    color: var(--ink-light);
+  }
+  .keywords strong { color: var(--ink-mid); font-weight: 600; }
+
+  /* ── TOC ── */
+  .toc-block {
+    border: 1px solid var(--rule);
+    padding: 20px 24px;
+    margin-bottom: 48px;
+    border-radius: 4px;
+    background: var(--bg-off);
+  }
+  .toc-label {
+    font-family: var(--sans);
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .toc-list { list-style: none; }
+  .toc-list li {
+    font-family: var(--sans);
+    font-size: 9.5pt;
+    padding: 3px 0;
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+  }
+  .toc-num {
+    color: var(--accent);
+    font-weight: 600;
+    width: 30px;
+    flex-shrink: 0;
+  }
+  .toc-dots {
+    flex: 1;
+    border-bottom: 1px dotted var(--rule);
+    margin: 0 6px;
+    position: relative;
+    top: -3px;
+  }
+  .toc-page { color: var(--ink-faint); width: 20px; text-align: right; }
+  .toc-section { color: var(--ink); }
+  .toc-list .sub { padding-left: 22px; font-size: 9pt; color: var(--ink-light); }
+  .toc-list .sub .toc-num { color: var(--ink-faint); font-weight: 400; }
+
+  /* ── SECTIONS ── */
+  .section { margin-bottom: 48px; }
+  .section-rule {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .section-num {
+    font-family: var(--sans);
+    font-size: 9pt;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-size: 17pt;
+    font-weight: 600;
+    color: var(--ink);
+    flex: 1;
+  }
+  .rule-line {
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+    display: none;
+  }
+  h3 {
+    font-family: var(--serif);
+    font-size: 13pt;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 24px 0 10px;
+  }
+  h4 {
+    font-family: var(--sans);
+    font-size: 10pt;
+    font-weight: 600;
+    color: var(--ink-mid);
+    margin: 18px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  p {
+    margin-bottom: 14px;
+    color: var(--ink-mid);
+    text-align: justify;
+    hyphens: auto;
+  }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── CALLOUTS ── */
+  .callout {
+    margin: 20px 0;
+    padding: 14px 18px;
+    border-radius: 4px;
+    border-left: 3px solid;
+  }
+  .callout.info { background: var(--blue-bg); border-color: var(--accent-mid); }
+  .callout.warn { background: var(--amber-bg); border-color: #b8860b; }
+  .callout.success { background: var(--green-bg); border-color: #198754; }
+  .callout.danger { background: var(--red-bg); border-color: #dc3545; }
+  .callout p { margin: 0; font-size: 10pt; color: var(--ink-mid); text-align: left; }
+  .callout strong { color: var(--ink); }
+  .callout-label {
+    font-family: var(--sans);
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .callout.info .callout-label { color: var(--accent-mid); }
+  .callout.warn .callout-label { color: var(--amber); }
+  .callout.success .callout-label { color: var(--green); }
+
+  /* ── MATH / CODE ── */
+  .math-block {
+    background: var(--bg-off);
+    border: 1px solid var(--rule);
+    padding: 12px 18px;
+    margin: 16px 0;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 9.5pt;
+    color: var(--ink);
+    overflow-x: auto;
+    line-height: 1.6;
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 9pt;
+    background: var(--bg-off);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--accent);
+    border: 1px solid var(--rule-light);
+  }
+
+  /* ── TABLES ── */
+  .table-wrap { overflow-x: auto; margin: 20px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--sans);
+    font-size: 9pt;
+  }
+  caption {
+    font-family: var(--sans);
+    font-size: 8.5pt;
+    color: var(--ink-light);
+    text-align: left;
+    margin-bottom: 6px;
+    font-style: italic;
+  }
+  th {
+    background: var(--ink);
+    color: #fff;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 8.5pt;
+    letter-spacing: 0.04em;
+  }
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--rule-light);
+    color: var(--ink-mid);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: var(--bg-off); }
+  tr:last-child td { border-bottom: none; }
+  td strong { color: var(--ink); font-weight: 600; }
+  td.check { color: #198754; font-weight: 700; font-size: 11pt; }
+  td.cross { color: #dc3545; font-weight: 700; font-size: 11pt; }
+  td.partial { color: #b8860b; font-weight: 700; }
+  td.highlight { background: #e8f0fe !important; font-weight: 600; color: var(--accent); }
+
+  /* ── FIGURES ── */
+  .figure {
+    margin: 28px 0;
+    padding: 20px;
+    background: var(--bg-off);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+  }
+  .figure-caption {
+    font-family: var(--sans);
+    font-size: 9pt;
+    color: var(--ink-light);
+    margin-top: 12px;
+    font-style: italic;
+    text-align: center;
+  }
+  .figure-caption strong { font-style: normal; color: var(--ink-mid); }
+
+  /* ── PIPELINE / FLOW ── */
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 16px 0;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  .pipe-box {
+    flex: 1;
+    min-width: 90px;
+    background: var(--accent);
+    color: #fff;
+    padding: 10px 8px;
+    text-align: center;
+    font-family: var(--sans);
+    font-size: 8pt;
+    font-weight: 600;
+    line-height: 1.3;
+    border-radius: 3px;
+    position: relative;
+  }
+  .pipe-box.alt { background: var(--accent-mid); }
+  .pipe-box.light { background: var(--bg-off); color: var(--ink-mid); border: 1px solid var(--rule); }
+  .pipe-box small { display: block; font-weight: 400; font-size: 7.5pt; opacity: 0.85; margin-top: 3px; }
+  .pipe-arrow {
+    display: flex;
+    align-items: center;
+    color: var(--rule);
+    font-size: 16pt;
+    padding: 0 2px;
+    flex-shrink: 0;
+  }
+
+  /* ── COMPARISON CARDS ── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .compare-card {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .compare-card-head {
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 14px;
+    font-family: var(--sans);
+    font-size: 9.5pt;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .compare-card-head.blue { background: var(--accent); }
+  .compare-card-head.green { background: #198754; }
+  .compare-card-head.amber { background: #b8860b; }
+  .compare-card-body {
+    padding: 12px 14px;
+    font-family: var(--sans);
+    font-size: 9pt;
+    color: var(--ink-mid);
+    line-height: 1.6;
+    background: #fff;
+  }
+  .compare-card-body ul { padding-left: 16px; }
+  .compare-card-body li { margin-bottom: 4px; }
+  .pro { color: var(--green); }
+  .con { color: #b91c1c; }
+
+  /* ── IMPL CARD ── */
+  .impl-block {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .impl-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-off);
+    border-bottom: 1px solid var(--rule);
+  }
+  .impl-name {
+    font-family: var(--sans);
+    font-size: 12pt;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .impl-by {
+    font-family: var(--sans);
+    font-size: 8.5pt;
+    color: var(--ink-faint);
+  }
+  .impl-badge {
+    margin-left: auto;
+    font-family: var(--sans);
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+  }
+  .badge-prod { background: var(--green-bg); color: var(--green); }
+  .badge-beta { background: var(--amber-bg); color: var(--amber); }
+  .badge-exp { background: var(--red-bg); color: var(--red); }
+  .impl-body { padding: 14px 16px; }
+  .impl-body p { font-size: 10pt; margin-bottom: 10px; }
+  .impl-specs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .impl-spec {
+    background: var(--bg-off);
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-family: var(--sans);
+  }
+  .impl-spec-label {
+    font-size: 7.5pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    margin-bottom: 2px;
+  }
+  .impl-spec-val {
+    font-size: 9pt;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ── BENCHMARK BAR CHART ── */
+  .bench-chart { margin: 16px 0; }
+  .bench-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .bench-label { font-family: var(--sans); font-size: 9pt; color: var(--ink-mid); width: 100px; flex-shrink: 0; }
+  .bench-track { flex: 1; height: 20px; background: var(--bg-off); border-radius: 3px; overflow: hidden; border: 1px solid var(--rule-light); }
+  .bench-fill { height: 100%; display: flex; align-items: center; padding-left: 6px; border-radius: 2px; }
+  .bench-fill span { font-family: var(--sans); font-size: 7.5pt; font-weight: 600; color: #fff; white-space: nowrap; }
+  .bench-val { font-family: var(--mono); font-size: 8.5pt; color: var(--ink-faint); width: 60px; text-align: right; flex-shrink: 0; }
+  .fill-blue { background: var(--accent); }
+  .fill-green { background: #198754; }
+  .fill-amber { background: #b8860b; }
+  .fill-gray { background: #6c757d; }
+  .fill-red { background: #dc3545; }
+
+  /* ── STAT ROW ── */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .stat-card {
+    background: var(--bg-off);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .stat-card .num {
+    font-family: var(--sans);
+    font-size: 22pt;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-card .lbl {
+    font-family: var(--sans);
+    font-size: 8pt;
+    color: var(--ink-light);
+    line-height: 1.3;
+  }
+
+  /* ── FOOTNOTES / REFERENCES ── */
+  .footnote-rule { border: none; border-top: 1px solid var(--rule); margin: 40px 0 20px; }
+  .footnote-section { font-family: var(--sans); font-size: 8.5pt; color: var(--ink-light); }
+  .footnote-section h4 {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    margin-bottom: 10px;
+    font-family: var(--sans);
+  }
+  .ref-list { counter-reset: refctr; list-style: none; }
+  .ref-list li {
+    counter-increment: refctr;
+    padding: 4px 0 4px 28px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .ref-list li::before {
+    content: "[" counter(refctr) "]";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .ref-list li em { font-style: italic; }
+  sup { font-family: var(--sans); font-size: 7pt; color: var(--accent); font-weight: 700; }
+
+  /* ── BLOCKQUOTE ── */
+  blockquote {
+    border-left: 3px solid var(--rule);
+    padding: 4px 0 4px 18px;
+    margin: 16px 0;
+    font-style: italic;
+    color: var(--ink-light);
+  }
+  blockquote cite {
+    display: block;
+    font-style: normal;
+    font-family: var(--sans);
+    font-size: 8.5pt;
+    color: var(--ink-faint);
+    margin-top: 4px;
+  }
+
+  /* ── UTILITY ── */
+  .divider { border: none; border-top: 1px solid var(--rule-light); margin: 32px 0; }
+  .text-center { text-align: center; }
+  .monospace { font-family: var(--mono); }
+  .small { font-size: 9pt; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .tag {
+    font-family: var(--sans);
+    font-size: 8pt;
+    padding: 3px 9px;
+    border: 1px solid var(--rule);
+    border-radius: 20px;
+    color: var(--ink-light);
+    background: var(--bg-off);
+  }
+  .tag.blue { background: var(--blue-bg); color: var(--blue-text); border-color: #b6d0ff; }
+  .trilemma-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .tri-card {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 14px;
+    text-align: center;
+    background: var(--bg-off);
+  }
+  .tri-icon { font-size: 22pt; margin-bottom: 6px; }
+  .tri-name { font-family: var(--sans); font-size: 10pt; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+  .tri-desc { font-family: var(--sans); font-size: 8.5pt; color: var(--ink-light); line-height: 1.5; }
+
+  @media (max-width: 700px) {
+    .page-wrap { padding: 30px 20px 60px; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .trilemma-grid { grid-template-columns: 1fr; }
+    .pipeline { flex-direction: column; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .page-wrap { box-shadow: none; padding: 40px; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<!-- ══════════ HEADER ══════════ -->
+<div class="paper-header">
+  <div class="paper-venue">Web3Bridge ZK Cohort &nbsp;·&nbsp; Final Research Paper &nbsp;·&nbsp; April 2026</div>
+  <h1 class="paper-title">Zero-Knowledge Virtual Machines</h1>
+  <p class="paper-subtitle">Architecture, Proof Systems, Implementations, and the Future of Verifiable Computation</p>
+  <div class="paper-author">Ekezie Uchenna &nbsp;·&nbsp; Goddswill Idolor</div>
+  <div class="paper-affil">Web3Bridge Academy &nbsp;·&nbsp; ZK Engineering Track</div>
+  <div class="paper-meta">
+    <span>📄 ~15,000 words</span>
+    <span>·</span>
+    <span>13 major sections</span>
+    <span>·</span>
+    <span>Submitted: May 2026</span>
+    <span>·</span>
+    <span>Status: Final</span>
+  </div>
+</div>
+
+<!-- ══════════ ABSTRACT ══════════ -->
+<div class="abstract-block">
+  <div class="abstract-label">Abstract</div>
+  <p>
+    Zero-knowledge virtual machines (zkVMs) represent one of the most consequential innovations in applied cryptography since the invention of public-key encryption. By enabling any program written in a general-purpose language to produce a cryptographic proof of correct execution, zkVMs fundamentally reframe the trust model of distributed computation: rather than requiring every party to re-execute every computation, a single succinct proof — verifiable in milliseconds — suffices. This paper provides a comprehensive treatment of zkVM technology: its theoretical foundations in zero-knowledge proof theory, its architectural components (instruction set architecture, arithmetization, prover, verifier, recursion), the dominant proof systems deployed in production (STARKs with FRI, SNARKs with Groth16 and PLONK), and the full landscape of leading implementations including RISC Zero, Succinct SP1, a16z Jolt, StarkWare Cairo/Stwo, ZKsync Airbender, Nexus zkVM, and others. We analyze performance benchmarks, the zkVM trilemma of speed/security/generality, the distinction between zkVMs and zkCoprocessors, and the full spectrum of applications ranging from Ethereum Layer 2 rollups to cross-chain bridges, privacy-preserving identity, verifiable AI inference, and real-time Layer 1 block proving.
+  </p>
+  <p>
+    The paper concludes with an original practical implementation section in which the authors build three working zkVM programs directly on the SP1 v6.1.0 source codebase: a ZK Password Verifier (SHA-256 hash preimage proof), a ZK Age Verifier (threshold proof without value revelation), and a ZK Human Verifier (multi-criteria selective disclosure with five test subjects). These implementations are used to derive concrete observations about the host/guest programming model, precompile performance advantages, and the structural enforcement of the zero-knowledge property in production zkVM systems.
+  </p>
+  <div class="keywords"><strong>Keywords:</strong> zero-knowledge proofs, zkVM, STARK, SNARK, RISC-V, arithmetization, verifiable computation, zkRollup, SP1, RISC Zero, Jolt, recursive proofs, Ethereum scaling, selective disclosure, practical implementation.</div>
+</div>
+
+<!-- ══════════ TABLE OF CONTENTS ══════════ -->
+<div class="toc-block">
+  <div class="toc-label">Contents</div>
+  <ol class="toc-list">
+    <li><span class="toc-num">1.</span><span class="toc-section">Introduction and Problem Statement</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">2.</span><span class="toc-section">Background: Zero-Knowledge Proofs</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">2.1</span><span class="toc-section">Definitions and Properties</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">2.2</span><span class="toc-section">From Circuits to General Computation</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">2.3</span><span class="toc-section">SNARKs and STARKs</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">3.</span><span class="toc-section">What is a zkVM?</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">4.</span><span class="toc-section">Architecture: Deep Dive</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">4.1</span><span class="toc-section">Instruction Set Architecture</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">4.2</span><span class="toc-section">Execution and Trace Generation</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">4.3</span><span class="toc-section">Arithmetization</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">4.4</span><span class="toc-section">Memory Checking</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">4.5</span><span class="toc-section">Chiplets and Precompiles</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">4.6</span><span class="toc-section">Recursion and Proof Composition</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">5.</span><span class="toc-section">Proof Systems in Depth</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">5.1</span><span class="toc-section">Polynomial Commitments</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">5.2</span><span class="toc-section">FRI and STARKs</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">5.3</span><span class="toc-section">Plonky3 and BabyBear</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">5.4</span><span class="toc-section">Lookup Arguments</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">6.</span><span class="toc-section">Major Implementations</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">7.</span><span class="toc-section">Performance Benchmarks and Analysis</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">8.</span><span class="toc-section">Applications and Use Cases</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">9.</span><span class="toc-section">The zkVM Trilemma and Open Challenges</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">10.</span><span class="toc-section">zkVM vs. zkCoprocessor</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">11.</span><span class="toc-section">Security Considerations</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">12.</span><span class="toc-section">Future Directions and Conclusion</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num">13.</span><span class="toc-section">Practical Implementation: Building on SP1</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">13.1</span><span class="toc-section">Environment Setup: Building from Source</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">13.2</span><span class="toc-section">Exploring the SP1 Source Architecture</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">13.3</span><span class="toc-section">Program 1 — ZK Password Verifier</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">13.4</span><span class="toc-section">Program 2 — ZK Age Verifier</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">13.5</span><span class="toc-section">Program 3 — ZK Human Verifier</span><span class="toc-dots"></span></li>
+    <li class="sub"><span class="toc-num">13.6</span><span class="toc-section">Observations and Lessons</span><span class="toc-dots"></span></li>
+    <li><span class="toc-num"></span><span class="toc-section">References</span><span class="toc-dots"></span></li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 1: INTRODUCTION
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 1</span>
+    <h2>Introduction and Problem Statement</h2>
+  </div>
+
+  <h3>1.1 The Fundamental Problem of Verifiable Computation</h3>
+  <p>
+    Consider a fundamental problem in distributed systems: a client outsources a complex computation to an untrusted server. How can the client be certain the server returned the correct result, without re-executing the computation? The naïve answer — re-execution — defeats the purpose of outsourcing entirely. For decades, this problem had no satisfying cryptographic solution. Clients either trusted the server, employed redundant execution (expensive), or used probabilistic checks (incomplete).
+  </p>
+  <p>
+    This problem is not merely academic. It sits at the heart of blockchain scalability. Every Ethereum full node today re-executes every transaction ever submitted to the network. As of 2026, this means billions of nodes collectively performing trillions of redundant operations — an extraordinary waste that caps the network's throughput. Ethereum processes roughly 15 transactions per second; Visa processes roughly 24,000. The gap is not fundamentally architectural — it is a verification problem.
+  </p>
+  <p>
+    The same problem appears in privacy-preserving applications. A user wants to prove they satisfy some criterion (age, creditworthiness, citizenship, KYC status) without revealing the underlying data. How can they prove a fact without revealing the secret that makes that fact true?
+  </p>
+  <p>
+    And in artificial intelligence: as models become commercial infrastructure, a critical question arises — how does a user know that a model provider actually ran their claimed model on their claimed inputs, without bias, tampering, or substitution? The answer, in all these cases, is the same: a <em>succinct cryptographic proof of correct computation</em>.
+  </p>
+
+  <h3>1.2 The Zero-Knowledge Virtual Machine as a Solution</h3>
+  <p>
+    A zero-knowledge virtual machine (zkVM) is a machine that executes arbitrary programs and produces a compact cryptographic receipt — a zero-knowledge proof — attesting to the correctness of that execution. The verifier can check this proof in milliseconds regardless of how long the original computation took. This seemingly simple idea has profound implications:
+  </p>
+  <ul style="padding-left: 22px; margin-bottom: 14px; font-family: var(--sans); font-size: 10pt; color: var(--ink-mid); line-height: 1.8;">
+    <li>It decouples computation from verification. Computation can be expensive; verification need not be.</li>
+    <li>It enables trustless delegation. A server can prove it did the work correctly without the client trusting the server.</li>
+    <li>It enables privacy. Proofs can be generated without revealing the inputs that produced them.</li>
+    <li>It scales blockchains. A single proof can attest to millions of transactions, verified on-chain for a fraction of the cost of re-execution.</li>
+    <li>It democratizes ZK. Developers need not understand advanced cryptography — they write normal code, and the zkVM handles the proof generation.</li>
+  </ul>
+
+  <div class="callout info">
+    <div class="callout-label">Key Insight</div>
+    <p><strong>The "zk" in zkVM is a misnomer in most production deployments.</strong> The essential property is <em>succinctness</em> — proofs are small and fast to verify, regardless of computation size. Zero-knowledge (hiding inputs) is optional and often not enabled. The "zk" prefix has become standard industry terminology, adopted by systems where privacy is secondary or absent. This paper follows that convention.</p>
+  </div>
+
+  <h3>1.3 Historical Context</h3>
+  <p>
+    The concept of a zkVM traces to the 2013 paper <em>"SNARKs for C: Verifying Program Executions Succinctly and in Zero Knowledge"</em> by Ben-Sasson, Chiesa, Genkin, Tromer, and Virza, which introduced TinyRAM — a minimalist RISC machine with 29 opcodes designed to be proved efficiently. TinyRAM established the foundational research direction and spawned a decade of innovation. Today's production systems are orders of magnitude more performant, but the underlying insight remains the same: model computation as execution on a simple machine, then prove that execution.
+  </p>
+  <p>
+    Between 2018 and 2022, practical zkVMs began appearing in Ethereum's Layer 2 ecosystem — first as zkEVMs optimized for Ethereum compatibility, then as general-purpose RISC-V-based systems capable of proving arbitrary computations. By 2025, the field had matured to the point where zkVMs were proving Ethereum blocks in under a minute; by late 2025, under 12 seconds — the Ethereum Foundation's threshold for "real-time proving." The trajectory points toward zkVMs becoming as invisible as TLS: always running, never noticed, but foundational to the trust architecture of the web.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 2: BACKGROUND
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 2</span>
+    <h2>Background: Zero-Knowledge Proofs</h2>
+  </div>
+
+  <h3>2.1 Definitions and Formal Properties</h3>
+  <p>
+    A <em>proof system</em> for a language L consists of an interaction between a <em>prover</em> P and a <em>verifier</em> V. The prover attempts to convince the verifier that some statement x belongs to L. A zero-knowledge proof system satisfies three properties:
+  </p>
+  <p>
+    <strong>Completeness.</strong> If x ∈ L and P is honest, then V accepts with overwhelming probability. An honest prover can always convince an honest verifier.
+  </p>
+  <p>
+    <strong>Soundness.</strong> If x ∉ L, then no computationally bounded cheating prover P* can convince V to accept, except with negligible probability. A dishonest prover cannot forge proofs.
+  </p>
+  <p>
+    <strong>Zero-Knowledge.</strong> If x ∈ L, then V learns nothing from the proof beyond the truth of the statement. Formally, there exists a polynomial-time simulator S such that the output of S is computationally indistinguishable from a real proof transcript.
+  </p>
+  <p>
+    For verifiable computation, a fourth property is critical:
+  </p>
+  <p>
+    <strong>Succinctness.</strong> The proof size and verification time are sublinear (ideally polylogarithmic or constant) in the computation size. Without succinctness, verification is as expensive as re-execution, defeating the purpose.
+  </p>
+  <p>
+    Systems satisfying completeness, soundness, and succinctness — without necessarily satisfying zero-knowledge — are called <em>Succinct Arguments of Knowledge</em> (SAKs) or informally SNARKs/STARKs. Most production zkVMs prioritize succinctness over strict zero-knowledge.
+  </p>
+
+  <h3>2.2 From Circuits to General Computation</h3>
+  <p>
+    Early ZK proof systems operated over <em>arithmetic circuits</em> — directed acyclic graphs where wires carry field elements and gates perform addition or multiplication over a finite field F. Any computation can be expressed as an arithmetic circuit, but circuits are inherently static: the circuit structure must be fixed before a proof is generated. This creates a critical limitation: you cannot prove a program that branches on secret data, loops a variable number of times, or accesses memory in an unpredictable order, without an exponential blowup in circuit size.
+  </p>
+  <p>
+    The solution is to model computation differently. Rather than proving a circuit, a zkVM proves the <em>execution trace</em> of a program running on an abstract machine. This trace is a table: each row records the machine state at one clock cycle (program counter, registers, memory access, opcode). Proving the execution trace is equivalent to proving the program ran correctly, and the table structure naturally handles branches, loops, and dynamic memory.
+  </p>
+
+  <h3>2.3 SNARKs and STARKs: The Two Families</h3>
+  <p>
+    The two dominant families of proof systems in production zkVMs have different tradeoff profiles:
+  </p>
+
+  <div class="compare-grid">
+    <div class="compare-card">
+      <div class="compare-card-head blue">SNARKs &nbsp;— Succinct Non-Interactive Arguments of Knowledge</div>
+      <div class="compare-card-body">
+        <ul>
+          <li class="pro">Extremely small proofs (~200 bytes for Groth16)</li>
+          <li class="pro">Fast on-chain verification (&lt;1ms)</li>
+          <li class="pro">Mature tooling and ecosystem</li>
+          <li class="con">Require a trusted setup (KZG ceremony)</li>
+          <li class="con">Not post-quantum secure</li>
+          <li class="con">Rely on elliptic curve pairings (BLS12-381, BN254)</li>
+        </ul>
+        <p style="margin-top: 8px; font-style: italic; font-size: 8.5pt; color: var(--ink-faint);">Examples: Groth16, PLONK, Halo2 (no trusted setup via accumulation), Nova</p>
+      </div>
+    </div>
+    <div class="compare-card">
+      <div class="compare-card-head green">STARKs &nbsp;— Scalable Transparent Arguments of Knowledge</div>
+      <div class="compare-card-body">
+        <ul>
+          <li class="pro">Transparent — no trusted setup required</li>
+          <li class="pro">Post-quantum secure (hash-function based)</li>
+          <li class="pro">Naturally fit step-by-step execution traces (AIR)</li>
+          <li class="pro">Highly parallelizable proof generation</li>
+          <li class="con">Larger proofs (~100–500 KB)</li>
+          <li class="con">Slower on-chain verification if not wrapped</li>
+        </ul>
+        <p style="margin-top: 8px; font-style: italic; font-size: 8.5pt; color: var(--ink-faint);">Examples: FRI-STARKs (Starkware), Plonky3, Circle STARKs (Stwo), Boojum</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout success">
+    <div class="callout-label">Common Pattern in Production</div>
+    <p>Many production zkVMs combine both: a STARK prover generates a proof quickly (taking advantage of transparency and parallelism), and then a final <em>SNARK wrapper</em> (typically Groth16) compresses that proof to ~200 bytes for cheap on-chain verification. This gives the transparency of STARKs with the succinctness of SNARKs — at the cost of an additional wrapping step.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 3: WHAT IS A zkVM
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 3</span>
+    <h2>What is a zkVM?</h2>
+  </div>
+
+  <p>
+    A <strong>zero-knowledge virtual machine</strong> is a system that: (1) executes a program expressed in some instruction set architecture, (2) records the full execution trace, and (3) generates a cryptographic proof that the execution occurred correctly with respect to the specified inputs and program. A verifier with access only to the proof, the program, and the public inputs can efficiently confirm the result's correctness without re-executing the program.
+  </p>
+
+  <div class="figure">
+    <div class="pipeline">
+      <div class="pipe-box">Source Code<small>Rust / C / Go</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-box alt">Compiler<small>LLVM / custom</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-box">Executor<small>runs + traces</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-box alt">Arithmetizer<small>AIR / R1CS</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-box">Prover<small>STARK / SNARK</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-box light">Proof</div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-box light">Verifier<small>milliseconds</small></div>
+    </div>
+    <div class="figure-caption"><strong>Figure 1.</strong> High-level pipeline of a zkVM from source code to on-chain verification. Each stage introduces different computational costs and design tradeoffs.</div>
+  </div>
+
+  <p>
+    The key distinction from a traditional virtual machine is the addition of the <em>cryptographic proof layer</em>. A traditional VM executes code and returns results; the results are trustworthy only because you trust the machine. A zkVM executes code and returns both results and a proof; the results are trustworthy because the proof is verified mathematically, regardless of whether you trust the machine.
+  </p>
+  <p>
+    This distinction is architecturally significant. The zkVM must model computation in a form that is amenable to algebraic proof techniques. This shapes every design decision: the choice of instruction set, the representation of memory, the handling of control flow, and the selection of the underlying proof system.
+  </p>
+
+  <h3>3.1 The Host/Guest Model</h3>
+  <p>
+    Most production zkVMs separate the application into two components:
+  </p>
+  <p>
+    The <strong>guest program</strong> is the code that gets proved. It runs inside the zkVM, and its execution trace is used to generate the proof. The guest has access to special I/O mechanisms to receive secret inputs (private witness) and emit public outputs (journal).
+  </p>
+  <p>
+    The <strong>host program</strong> is the outer environment that controls the zkVM. The host loads the guest program, provides inputs, receives outputs, and manages the proving process. The host is not proved — it is trusted code running on the developer's infrastructure.
+  </p>
+  <p>
+    This separation allows developers to write complex orchestration logic in the host without proving it, while isolating the critical computation that needs trustless verification into the guest. The guest program is compiled to an ELF binary (in RISC-V-based systems), which the executor runs and traces before the prover generates the receipt.
+  </p>
+
+  <h3>3.2 zkVM vs. zkEVM</h3>
+  <p>
+    A <strong>zkEVM</strong> is a specialized zkVM whose instruction set is the Ethereum Virtual Machine — it proves Ethereum smart contract execution. zkEVMs have been classified into types based on their compatibility with the EVM:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Table 1. zkEVM type taxonomy (after Vitalik Buterin's classification)</caption>
+      <thead><tr><th>Type</th><th>Description</th><th>EVM Compatibility</th><th>Examples</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Type 1</strong></td><td>Fully Ethereum-equivalent</td><td>Perfect — can prove existing Ethereum blocks</td><td>Scroll (Type 1 target)</td></tr>
+        <tr><td><strong>Type 2</strong></td><td>EVM-equivalent</td><td>Same EVM behavior, different state/data structure</td><td>Polygon zkEVM</td></tr>
+        <tr><td><strong>Type 3</strong></td><td>Almost EVM-equivalent</td><td>Minor deviations for performance</td><td>Scroll (early), zkSync Era</td></tr>
+        <tr><td><strong>Type 4</strong></td><td>High-level language equivalent</td><td>Compiles from Solidity, not EVM bytecode</td><td>Starknet (Cairo)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    General-purpose zkVMs (RISC Zero, SP1) differ from zkEVMs fundamentally: they target a general ISA (RISC-V, WASM), support arbitrary programs in any compiled language, and can be used to prove Ethereum blocks as one application among many — rather than being built exclusively around EVM compatibility.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 4: ARCHITECTURE
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 4</span>
+    <h2>Architecture: Deep Dive</h2>
+  </div>
+
+  <h3>4.1 Instruction Set Architecture (ISA)</h3>
+  <p>
+    The ISA is the most consequential design decision in building a zkVM. It defines the universe of programs the system can execute and prove, and fundamentally determines the complexity of the proof system.
+  </p>
+
+  <p><strong>RISC-V</strong> has emerged as the dominant ISA for general-purpose zkVMs. Developed at UC Berkeley in 2010, RISC-V is an open-standard, minimal instruction set with just 47 base integer instructions (RV32I). Its properties that make it ideal for zkVM use are: open standard (no licensing), LLVM support (compile C, C++, Rust, Go directly), minimal instruction count (fewer opcodes to arithmetize), and a large ecosystem of existing tooling. RISC Zero, SP1, Nexus, ZKM, and Airbender all target RISC-V.</p>
+
+  <p><strong>ZK-native ISAs</strong> are instruction sets designed from the ground up for proof-efficiency. Cairo (StarkWare) and Miden (Polygon) are the leading examples. Cairo's VM uses a special memory model — write-once, non-deterministic reads — that is extremely efficient to arithmetize. ZK-native ISAs can achieve dramatically lower constraint counts than RISC-V for equivalent computations, but require developers to use a new language or compiler toolchain, fragmenting ecosystem compatibility.</p>
+
+  <p><strong>EVM</strong> targets Ethereum compatibility. The EVM is notoriously difficult to arithmetize: 256-bit word size (requiring range checks in 32-bit proof fields), variable-length stack operations, expensive storage access patterns, and complex opcode semantics. Every zkEVM team has developed custom arithmetization strategies to manage this complexity.</p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Table 2. ISA comparison across key dimensions</caption>
+      <thead><tr><th>ISA</th><th>Word Size</th><th>Constraint Efficiency</th><th>Compiler Support</th><th>Developer Familiarity</th><th>Representative zkVMs</th></tr></thead>
+      <tbody>
+        <tr><td><strong>RISC-V (RV32IM)</strong></td><td>32-bit</td><td>Good</td><td>Excellent (LLVM)</td><td>High (Rust, C, Go)</td><td>SP1, RISC Zero, Nexus, Airbender</td></tr>
+        <tr><td><strong>RISC-V (RV64IM)</strong></td><td>64-bit</td><td>Moderate</td><td>Excellent (LLVM)</td><td>High</td><td>ZKM</td></tr>
+        <tr><td><strong>Cairo</strong></td><td>252-bit (field)</td><td>Excellent</td><td>Cairo lang only</td><td>Low (new paradigm)</td><td>Starknet (Cairo VM)</td></tr>
+        <tr><td><strong>Miden</strong></td><td>64-bit (u32)</td><td>Very good</td><td>Miden assembly</td><td>Medium</td><td>Polygon Miden</td></tr>
+        <tr><td><strong>EVM</strong></td><td>256-bit</td><td>Poor</td><td>Solidity / Vyper</td><td>Very high</td><td>zkSync, Scroll, Polygon zkEVM</td></tr>
+        <tr><td><strong>WASM</strong></td><td>32/64-bit</td><td>Moderate</td><td>Good (Rust, C)</td><td>Medium</td><td>Delphinus zkWasm</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>4.2 Execution and Trace Generation</h3>
+  <p>
+    The <em>executor</em> is a standard virtual machine that interprets the compiled bytecode. For RISC-V systems, this means running an ELF binary through the standard fetch-decode-execute cycle. The critical addition relative to a normal VM is <em>trace recording</em>: every state transition is captured in a structured table.
+  </p>
+  <p>
+    The execution trace is a matrix where each row corresponds to one clock cycle. Columns record:
+  </p>
+  <div class="math-block">
+    Row_i = (pc_i, opcode_i, rs1_i, rs2_i, rd_i, imm_i, mem_addr_i, mem_val_i, clk_i, ...)
+  </div>
+  <p>
+    where <code>pc</code> is the program counter, <code>opcode</code> is the instruction, <code>rs1</code> and <code>rs2</code> are source registers, <code>rd</code> is the destination register, <code>imm</code> is an immediate value, and <code>clk</code> is the cycle counter. The trace also includes auxiliary columns for memory access, range checks, and chiplet I/O.
+  </p>
+  <p>
+    The trace is then partitioned into tables handled by different components of the system — the CPU table, the memory table, the arithmetic table, and so on. These tables are later proved using polynomial constraints (see §4.3) and connected via lookup arguments (see §5.4).
+  </p>
+
+  <h3>4.3 Arithmetization</h3>
+  <p>
+    <em>Arithmetization</em> is the process of converting the execution trace into polynomial constraints that can be verified by a proof system. This is arguably the most technically subtle component of a zkVM, and the source of most performance differences between systems.
+  </p>
+
+  <p><strong>R1CS (Rank-1 Constraint System)</strong> is the arithmetization scheme used by older SNARKs (Groth16). Every constraint takes the form:</p>
+  <div class="math-block">
+    (a · x) ⊙ (b · x) = (c · x)
+  </div>
+  <p>where x is the witness vector and a, b, c are selector vectors. R1CS is expressive but requires converting control flow into multiplication chains, which is expensive. It is rarely used in modern zkVMs.</p>
+
+  <p><strong>PLONKish (PLONKish arithmetization)</strong> used by Halo2 and related systems. Generalizes R1CS to support custom gates — rather than only multiplication gates, the developer can define arbitrary polynomial constraints per row. This is more expressive and allows more efficient representation of operations like range checks, bitwise operations, and lookups.</p>
+
+  <p><strong>AIR (Algebraic Intermediate Representation)</strong> is the dominant arithmetization for STARK-based zkVMs. An AIR defines a set of polynomial constraints that relate adjacent rows of the execution trace:</p>
+  <div class="math-block">
+    P(row_i, row_{i+1}) = 0  for all i in [0, N-1]
+  </div>
+  <p>
+    This "next-row" constraint naturally models state transitions in a sequential machine: the constraint can check that the program counter incremented correctly, that register writes were valid, that memory accesses were consistent. AIR is particularly well-suited to zkVMs because the step-by-step structure of program execution maps directly onto the adjacent-row structure of AIR constraints.
+  </p>
+
+  <h3>4.4 Memory Checking: The Hard Problem</h3>
+  <p>
+    Memory is one of the most challenging aspects of zkVM design. A program may read and write to millions of memory addresses in unpredictable order. How do we prove that every read returns the most recently written value at that address?
+  </p>
+  <p>
+    <strong>The naïve approach</strong> would be to include the full memory state in every row of the execution trace. For a machine with 4 GB of addressable memory and millions of execution steps, this is astronomically expensive.
+  </p>
+  <p>
+    <strong>Offline memory checking</strong> (introduced by Blum et al., 1991, and adapted for zkVMs) is far more efficient. The key insight is that we only need to prove consistency between <em>accesses</em>, not between <em>states</em>. The zkVM maintains two logs:
+  </p>
+  <ul style="padding-left: 22px; margin-bottom: 14px; font-family: var(--sans); font-size: 10pt; color: var(--ink-mid); line-height: 1.8;">
+    <li>A <strong>write log W</strong>: records every write <code>(addr, val, clk)</code> plus initial memory values.</li>
+    <li>A <strong>read log R</strong>: records every read <code>(addr, val, clk)</code>.</li>
+  </ul>
+  <p>
+    Correctness requires: every read at <code>(addr, clk)</code> must see the value written in the most recent write to <code>addr</code> at some <code>clk' &lt; clk</code>. This is equivalent to saying that R and W, when sorted by <code>(addr, clk)</code>, form a consistent timeline. This multiset equality can be checked using a <em>multiset hash</em> or a <em>grand product argument</em> — polynomial operations that are cheap to prove.
+  </p>
+  <div class="callout info">
+    <div class="callout-label">Memory Timestamp Trick</div>
+    <p>Modern zkVMs (SP1, Nexus, Airbender) use an explicit timestamp column in the trace. Each read records the timestamp of the previous write to that address (<code>clk_prev</code>) and the current timestamp (<code>clk_cur</code>). A constraint enforces <code>clk_prev &lt; clk_cur</code>, and a separate multiset argument proves that every <code>(addr, val, clk_prev)</code> tuple in the read log appears in the write log. This decomposes the global memory consistency problem into local row-level constraints plus one multiset check.</p>
+  </div>
+
+  <h3>4.5 Chiplets and Precompiles</h3>
+  <p>
+    Some operations are prohibitively expensive to prove directly in the main CPU trace. Cryptographic hash functions (SHA-256, Keccak-256), elliptic curve point multiplication, RSA exponentiation, and large-integer arithmetic all require tens of thousands of constraints per operation in a naïve AIR formulation. zkVMs address this with two techniques:
+  </p>
+  <p>
+    <strong>Chiplets</strong> (used by Miden, originally inspired by Polygon's arithmetization work) are specialized sub-circuits that handle expensive operations independently. The main CPU trace can invoke a chiplet by writing the inputs to a shared bus and reading back the outputs. The chiplet produces its own trace, proved separately, with the correctness of the I/O enforced by a lookup argument between the CPU trace and the chiplet trace.
+  </p>
+  <p>
+    <strong>Precompiles</strong> (used by SP1 and RISC Zero) are hand-written, optimized circuits for specific operations that replace the naive RISC-V implementation of those operations. When the guest program calls, for example, <code>sha256(data)</code>, the zkVM detects this call and routes it to the SHA-256 precompile — a hand-crafted AIR circuit that computes SHA-256 in far fewer constraints than the RISC-V instruction-by-instruction implementation would require. SP1's precompiles reduce cycle counts by 5–10× for workloads dominated by hashing and elliptic curve operations.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Table 3. Example precompile operations and their cycle reduction factors in SP1</caption>
+      <thead><tr><th>Operation</th><th>Naïve RISC-V Cycles</th><th>With Precompile</th><th>Speedup</th></tr></thead>
+      <tbody>
+        <tr><td>SHA-256 (64 bytes)</td><td>~2,000 cycles</td><td>~200 cycles</td><td class="highlight">10×</td></tr>
+        <tr><td>Keccak-256 (64 bytes)</td><td>~5,000 cycles</td><td>~500 cycles</td><td class="highlight">10×</td></tr>
+        <tr><td>secp256k1 ECDSA verify</td><td>~500,000 cycles</td><td>~50,000 cycles</td><td class="highlight">10×</td></tr>
+        <tr><td>ed25519 verify</td><td>~300,000 cycles</td><td>~40,000 cycles</td><td class="highlight">7.5×</td></tr>
+        <tr><td>BN254 pairing</td><td>~2,000,000 cycles</td><td>~200,000 cycles</td><td class="highlight">10×</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>4.6 Recursion and Proof Composition</h3>
+  <p>
+    A critical challenge in zkVM design is handling programs of unbounded length. A STARK proof for N execution steps has size O(log² N) — polylogarithmic, but still growing. For a program running for billions of cycles, even a polylogarithmic proof becomes impractically large.
+  </p>
+  <p>
+    <em>Recursive proof composition</em> solves this. The key insight: the verifier for a proof is itself a computation, and that computation can be proved by another zkVM instance. This creates a "proof of a proof" — a single fixed-size proof that attests to the correctness of the entire chain of computation, regardless of how long the original program ran.
+  </p>
+  <p>
+    In practice, zkVMs use <em>continuations</em>: the program is divided into fixed-size segments (typically 16M or 64M cycles). Each segment produces a STARK proof. These proofs are then recursively aggregated — each aggregation step proves that the previous proofs were correct — producing a single final proof. RISC Zero and SP1 both implement continuation-based recursion, enabling proof of programs of arbitrary length.
+  </p>
+  <div class="math-block">
+    Proof_final = Prove(Verify(Proof_1) ∧ Verify(Proof_2) ∧ ... ∧ Verify(Proof_N))
+  </div>
+  <p>
+    An alternative approach is <em>folding schemes</em> (Nova, SuperNova, HyperNova), which "fold" multiple instances of a relation into a single instance incrementally, without requiring a full recursion step. Nexus and Novanet use folding schemes, which have excellent theoretical properties for very long computations but currently underperform STARK-based systems in practice due to large proof sizes.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 5: PROOF SYSTEMS
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 5</span>
+    <h2>Proof Systems in Depth</h2>
+  </div>
+
+  <h3>5.1 Polynomial Commitment Schemes</h3>
+  <p>
+    Every modern proof system is built on a <em>polynomial commitment scheme</em> (PCS) — a protocol that allows a prover to commit to a polynomial and later prove that the polynomial evaluates to a specific value at a specific point, without revealing the polynomial itself. The PCS is the cryptographic engine underneath the proof system, and the choice of PCS determines many fundamental properties.
+  </p>
+  <p>
+    <strong>KZG commitments</strong> (Kate-Zaverucha-Goldberg, 2010) use elliptic curve pairings to produce constant-size commitments and proofs. They underlie PLONK, Halo2, and many SNARKs. They require a trusted setup (structured reference string from a powers-of-tau ceremony) and are not post-quantum secure.
+  </p>
+  <p>
+    <strong>FRI (Fast Reed-Solomon IOPP)</strong> is a hash-function-based PCS that achieves near-linear proving time and polylogarithmic proof size with no trusted setup. FRI underlies all STARK systems. It works by repeatedly folding the polynomial into lower-degree polynomials and providing proximity proofs at each level via Merkle trees.
+  </p>
+  <p>
+    <strong>Brakedown and Binius</strong> are newer hash-based PCS schemes designed specifically for binary fields (F_2), enabling highly parallelizable proof generation on commodity hardware. Binius in particular has attracted attention for its potential to replace BabyBear-based systems with even faster provers.
+  </p>
+
+  <h3>5.2 FRI and STARKs: The Dominant Approach</h3>
+  <p>
+    The FRI-STARK pipeline is the dominant approach in production zkVMs (SP1, RISC Zero, Cairo/Stwo, Airbender). The high-level structure is:
+  </p>
+  <ul style="padding-left: 22px; margin-bottom: 14px; font-family: var(--sans); font-size: 10pt; color: var(--ink-mid); line-height: 1.8;">
+    <li><strong>Step 1 — Trace commitment:</strong> The execution trace is interpolated as a polynomial and committed via a Merkle tree over a low-degree extension field.</li>
+    <li><strong>Step 2 — Constraint composition:</strong> All AIR constraints are combined into a single quotient polynomial Q(x) that equals zero on all rows of the trace if and only if all constraints are satisfied.</li>
+    <li><strong>Step 3 — FRI proximity proof:</strong> The prover convinces the verifier that Q(x) is of sufficiently low degree (i.e., that it is actually a valid polynomial, not arbitrary data), using the FRI protocol. This is the computationally intensive step.</li>
+    <li><strong>Step 4 — Query phase:</strong> The verifier sends random challenges; the prover opens the committed polynomials at those points and provides Merkle proofs of consistency.</li>
+  </ul>
+  <p>
+    The soundness of the STARK is determined by the number of queries and the rate of the Reed-Solomon code. More queries means higher soundness but larger proofs. Production systems balance this to achieve 128-bit security with reasonably compact proofs.
+  </p>
+
+  <h3>5.3 Plonky3 and the BabyBear Field</h3>
+  <p>
+    <em>Plonky3</em>, developed by Polygon and used as the proving backend for SP1, is a modular STARK proving framework designed for maximum performance. Its key innovation is the choice of field: the <strong>BabyBear prime</strong>, defined as p = 2³¹ − 2²⁷ + 1 ≈ 2.01 × 10⁹.
+  </p>
+  <p>
+    The BabyBear prime fits in a 32-bit machine word, meaning all field arithmetic can be performed without 64-bit overflow handling. This is a critical performance advantage: modern CPUs and GPUs have highly optimized 32-bit arithmetic pipelines, and Plonky3's field arithmetic runs at near-native speed. Older systems using the Goldilocks prime (64-bit) or BN254 (256-bit) are substantially slower per field operation.
+  </p>
+  <div class="math-block">
+    BabyBear: p = 2^31 - 2^27 + 1 = 2,013,265,921  (fits in u32)
+    Goldilocks: p = 2^64 - 2^32 + 1               (fits in u64)
+    BN254: p ≈ 2^254                                (requires multi-word arithmetic)
+  </div>
+
+  <h3>5.4 Lookup Arguments: The Jolt Innovation</h3>
+  <p>
+    Traditional STARK systems prove each RISC-V instruction by encoding its semantics as polynomial constraints. Even with chiplets, this requires tens of constraints per instruction. A fundamentally different approach is to use <em>lookup arguments</em>.
+  </p>
+  <p>
+    A lookup argument proves that every value in one table appears in another (pre-computed) table, without directly proving the computation. The Lasso lookup argument (used by Jolt) takes this to an extreme: for RISC-V instructions, the output of every instruction is pre-computed in a massive lookup table. Proving an instruction execution becomes proving that <code>(input, output)</code> appears in the table — a much cheaper operation than re-proving the computation directly.
+  </p>
+  <p>
+    The challenge is the size of the lookup table: for a 32-bit instruction set, the full table has 2⁶⁴ entries — obviously infeasible to store. Lasso uses polynomial techniques (multilinear extensions and sparse table representations) to compress these tables dramatically. The MLE (multilinear extension) of a sparse table can be computed and committed without materializing the full 2⁶⁴-entry table.
+  </p>
+  <p>
+    <strong>LogUp</strong> is a lookup argument used by SP1 and Plonky3. It represents lookup constraints as logarithmic derivatives and uses a grand product check. LogUp is highly efficient and well-suited to the chiplet/precompile architecture of SP1.
+  </p>
+  <p>
+    <strong>Plookup</strong> (used by PLONK-based systems) sorts the table and the witness together and checks that the sorted combined sequence is a valid interleaving. Less efficient than LogUp for large tables but simpler to implement.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 6: MAJOR IMPLEMENTATIONS
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 6</span>
+    <h2>Major Implementations</h2>
+  </div>
+  <p>
+    The zkVM landscape has evolved rapidly from academic prototypes to production-grade systems. The following are the leading implementations as of April 2026, evaluated across architecture, performance, maturity, and ecosystem.
+  </p>
+
+  <!-- SP1 -->
+  <div class="impl-block">
+    <div class="impl-head">
+      <div>
+        <div class="impl-name">SP1 (Succinct Processor One)</div>
+        <div class="impl-by">Succinct Labs · 2024–present</div>
+      </div>
+      <span class="impl-badge badge-prod">Production</span>
+    </div>
+    <div class="impl-body">
+      <p>SP1 is the developer-experience leader of the zkVM space and arguably the most widely deployed general-purpose zkVM as of 2026. Its design philosophy centers on making zero-knowledge proofs accessible to any Rust developer without requiring cryptographic expertise. Programs are compiled to RISC-V using the standard Rust toolchain; the developer never touches constraint systems or polynomial arithmetic.</p>
+      <p>SP1's proving backend is Plonky3, using AIR arithmetization over the BabyBear field with FRI polynomial commitments and LogUp lookup arguments. The system uses a precompile architecture where common cryptographic operations (SHA-256, Keccak, secp256k1, ed25519, BN254, BLS12-381) are replaced with hand-optimized circuits, reducing cycle counts by 5–10×. GPU acceleration via CUDA and CPU acceleration via AVX512/NEON are both supported. A prover network (Boundless) allows on-demand proof generation without local hardware.</p>
+      <p>Adopted by: Polygon, Celestia, Avail, Scroll (custom precompiles), and dozens of cross-chain bridge and light client applications. Proved over 10,000 programs and trillions of cycles as of August 2025.</p>
+      <div class="impl-specs">
+        <div class="impl-spec"><div class="impl-spec-label">ISA</div><div class="impl-spec-val">RISC-V (RV32IM)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Proof system</div><div class="impl-spec-val">Plonky3 (STARK)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Field</div><div class="impl-spec-val">BabyBear</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Arithmetization</div><div class="impl-spec-val">AIR + LogUp</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Final proof</div><div class="impl-spec-val">Groth16 wrap</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Languages</div><div class="impl-spec-val">Rust (primary)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">GPU support</div><div class="impl-spec-val">CUDA, AVX</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Status</div><div class="impl-spec-val">Production (v2+)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RISC Zero -->
+  <div class="impl-block">
+    <div class="impl-head">
+      <div>
+        <div class="impl-name">RISC Zero zkVM</div>
+        <div class="impl-by">RISC Zero Inc. · 2022–present</div>
+      </div>
+      <span class="impl-badge badge-prod">Production</span>
+    </div>
+    <div class="impl-body">
+      <p>RISC Zero was one of the first general-purpose zkVMs to reach production status and has invested heavily in formal verification — seeking mathematical guarantees of circuit correctness beyond standard testing. The R0VM 2.0 release in April 2025 was a landmark: it reduced Ethereum block proving time from 35 minutes to 44 seconds and expanded guest memory to 3 GB, enabling significantly more complex applications.</p>
+      <p>The system uses a split host/guest model where the guest program (compiled RISC-V ELF) is executed by the Executor, which produces a session (segmented execution trace). The Prover then generates a receipt for each segment, and recursive compression produces a final compact proof. The receipt includes a Journal (public outputs) and a Seal (the cryptographic proof). Steel is RISC Zero's zkCoprocessor interface for Solidity developers.</p>
+      <p>RISC Zero interoperates with Ethereum, Base, Optimism, Arbitrum, and Starknet. The Boundless open marketplace allows any application to request proofs from a competitive network of provers, commoditizing ZK computation.</p>
+      <div class="impl-specs">
+        <div class="impl-spec"><div class="impl-spec-label">ISA</div><div class="impl-spec-val">RISC-V (RV32IM)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Proof system</div><div class="impl-spec-val">STARK + Groth16</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Field</div><div class="impl-spec-val">BabyBear</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Arithmetization</div><div class="impl-spec-val">AIR (ZIRGEN)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Memory</div><div class="impl-spec-val">Up to 3 GB guest</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Languages</div><div class="impl-spec-val">Rust, C, C++</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Formal verification</div><div class="impl-spec-val">Partial (ZIRGEN)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Status</div><div class="impl-spec-val">Production (v1.2+)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Jolt -->
+  <div class="impl-block">
+    <div class="impl-head">
+      <div>
+        <div class="impl-name">Jolt</div>
+        <div class="impl-by">a16z crypto research · 2024–present</div>
+      </div>
+      <span class="impl-badge badge-beta">Beta</span>
+    </div>
+    <div class="impl-body">
+      <p>Jolt introduces a fundamentally different approach to zkVM design, departing from the AIR-based mainstream. Its core insight, from the 2023 paper by Arun, Setty, and Thaler, is that RISC-V instruction semantics can be encoded entirely in lookup tables using the Lasso lookup argument, rather than as polynomial constraints. This "lookup singularity" approach dramatically reduces the constraint count per instruction step.</p>
+      <p>Jolt's proving backend is Spartan (using the sum-check protocol) combined with Lasso for the lookup argument. Early benchmarks (2024) showed 6× improvements over RISC Zero and 2× over SP1 on certain workloads. However, Jolt faces significant challenges: the MLE construction for large lookup tables requires enormous RAM (multi-gigabytes for complex programs), GPU support is absent, and the system does not yet support continuations (proofs of programs longer than ~10 million cycles). These limitations prevent production deployment as of April 2026.</p>
+      <div class="impl-specs">
+        <div class="impl-spec"><div class="impl-spec-label">ISA</div><div class="impl-spec-val">RISC-V (RV32IM)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Proof system</div><div class="impl-spec-val">Spartan + Lasso</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Frontend</div><div class="impl-spec-val">Lookup-based</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">PCS</div><div class="impl-spec-val">Zeromorph / Binius</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">GPU support</div><div class="impl-spec-val">None (2026)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Continuations</div><div class="impl-spec-val">Partial</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">RAM usage</div><div class="impl-spec-val">Very high</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Status</div><div class="impl-spec-val">Research/Beta</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cairo / Stwo -->
+  <div class="impl-block">
+    <div class="impl-head">
+      <div>
+        <div class="impl-name">Cairo VM / Stwo</div>
+        <div class="impl-by">StarkWare Industries · 2020–present</div>
+      </div>
+      <span class="impl-badge badge-prod">Production</span>
+    </div>
+    <div class="impl-body">
+      <p>Cairo is the original production zkVM, powering StarkEx (used by dYdX, Sorare, ImmutableX) and Starknet since 2020. The Cairo VM uses a ZK-native instruction set with a write-once memory model — a memory cell can only be written once during execution, which is extremely efficient to prove. Cairo programs are written in the Cairo language (or compiled via Sierra, a safe intermediate representation), with Rust-like syntax and a Rust-like type system.</p>
+      <p>The Stwo prover is StarkWare's next-generation proving backend for Cairo, using Circle STARKs over the Mersenne31 prime (p = 2³¹ − 1). The Mersenne31 prime is particularly efficient on 32-bit hardware because multiplication modulo 2³¹−1 requires no reduction step when the product is less than 2³¹. Circle STARKs replace the standard multiplicative group domain with a circle group, enabling more efficient FFTs and lower constraint counts. Stwo also integrates deeply with hardware acceleration, targeting real-time proving for Starknet blocks.</p>
+      <div class="impl-specs">
+        <div class="impl-spec"><div class="impl-spec-label">ISA</div><div class="impl-spec-val">Cairo (ZK-native)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Proof system</div><div class="impl-spec-val">Circle STARKs</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Field</div><div class="impl-spec-val">Mersenne31</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Language</div><div class="impl-spec-val">Cairo / Sierra</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Memory model</div><div class="impl-spec-val">Write-once</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Prover</div><div class="impl-spec-val">Stwo (new)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Production use</div><div class="impl-spec-val">Starknet L2</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Status</div><div class="impl-spec-val">Production</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Airbender -->
+  <div class="impl-block">
+    <div class="impl-head">
+      <div>
+        <div class="impl-name">Airbender</div>
+        <div class="impl-by">Matter Labs (ZKsync) · 2025–present</div>
+      </div>
+      <span class="impl-badge badge-prod">Production (Mainnet)</span>
+    </div>
+    <div class="impl-body">
+      <p>Airbender is ZKsync's open-source zkVM, launched with the Atlas Upgrade in late 2025 and powering all new ZKsync chains on mainnet. Its defining achievement is extreme hardware efficiency: it proves Ethereum blocks on a single H100 GPU in approximately 35 seconds — comparable to systems requiring 50–160 GPUs at far lower hardware cost (~$0.0001 per transfer vs. prior Boojum prover). Airbender uses the RISC-V 32I+M instruction set and processes the ELF binary in chunks of ~4 million cycles, stitching proofs via memory arguments.</p>
+      <p>The architecture is notable for its CPU/GPU division of labor: the CPU handles RISC-V simulation and trace generation, while the GPU handles witness generation and the proving computation. This clean separation allows the system to be optimized for each hardware type independently. The codebase is fully open-source on GitHub under matter-labs/zksync-airbender.</p>
+      <div class="impl-specs">
+        <div class="impl-spec"><div class="impl-spec-label">ISA</div><div class="impl-spec-val">RISC-V (RV32I+M)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Eth block (1 H100)</div><div class="impl-spec-val">~35s</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Proving cost</div><div class="impl-spec-val">~$0.0001/tx</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Hardware</div><div class="impl-spec-val">Single GPU</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Open source</div><div class="impl-spec-val">Yes (GitHub)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Production</div><div class="impl-spec-val">ZKsync mainnet</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Status</div><div class="impl-spec-val">Production</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Chunk size</div><div class="impl-spec-val">~4M cycles</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nexus -->
+  <div class="impl-block">
+    <div class="impl-head">
+      <div>
+        <div class="impl-name">Nexus zkVM</div>
+        <div class="impl-by">Nexus Labs · 2023–present</div>
+      </div>
+      <span class="impl-badge badge-exp">Experimental</span>
+    </div>
+    <div class="impl-body">
+      <p>Nexus prioritizes modularity, openness, and formal specification above all else. The system is written entirely in Rust with no proprietary components or code obfuscation — every cryptographic component is publicly specified and peer-reviewed. Built on top of StarkWare's Stwo prover, Nexus targets RISC-V and uses a modular architecture where the prover backend, ISA, and memory model can be swapped independently. It is designed to be extensible: new languages, new precompiles, and new proving backends can be integrated without vendor lock-in. Currently experimental and not recommended for production use.</p>
+      <div class="impl-specs">
+        <div class="impl-spec"><div class="impl-spec-label">ISA</div><div class="impl-spec-val">RISC-V</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Backend</div><div class="impl-spec-val">Stwo (StarkWare)</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Design focus</div><div class="impl-spec-val">Modularity</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Open source</div><div class="impl-spec-val">Fully open</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Formal spec</div><div class="impl-spec-val">Full spec</div></div>
+        <div class="impl-spec"><div class="impl-spec-label">Status</div><div class="impl-spec-val">Experimental</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Table 4. Summary comparison of major zkVM implementations</caption>
+      <thead><tr><th>zkVM</th><th>ISA</th><th>Proof System</th><th>GPU</th><th>Recursion</th><th>Post-Quantum</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><strong>SP1</strong></td><td>RISC-V 32</td><td>Plonky3 / FRI</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td>Production</td></tr>
+        <tr><td><strong>RISC Zero</strong></td><td>RISC-V 32</td><td>STARK + Groth16</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td>Production</td></tr>
+        <tr><td><strong>Airbender</strong></td><td>RISC-V 32</td><td>STARK</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td>Production</td></tr>
+        <tr><td><strong>Cairo/Stwo</strong></td><td>Cairo</td><td>Circle STARKs</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td>Production</td></tr>
+        <tr><td><strong>Jolt</strong></td><td>RISC-V 32</td><td>Spartan+Lasso</td><td class="cross">✗</td><td class="partial">Partial</td><td class="check">✓</td><td>Beta</td></tr>
+        <tr><td><strong>Nexus</strong></td><td>RISC-V 32</td><td>Stwo (STARK)</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td><td>Experimental</td></tr>
+        <tr><td><strong>OpenVM</strong></td><td>RISC-V 32</td><td>Plonky3</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td>Beta</td></tr>
+        <tr><td><strong>Miden</strong></td><td>Miden assembly</td><td>STARK (AIR)</td><td class="cross">✗</td><td class="check">✓</td><td class="check">✓</td><td>Beta</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 7: BENCHMARKS
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 7</span>
+    <h2>Performance Benchmarks and Analysis</h2>
+  </div>
+
+  <h3>7.1 Benchmarking Challenges</h3>
+  <p>
+    Comparing zkVM performance is notoriously difficult. Results depend on: hardware (CPU vs GPU, GPU model, RAM), whether hardware acceleration is enabled (CUDA, AVX), proof mode (STARK only vs STARK + SNARK wrapper), hash function selection (Poseidon vs SHA-256 vs Keccak), continuation depth (single proof vs recursive aggregation), and the specific workload (Fibonacci vs SHA-256 vs ECDSA vs Ethereum block). Benchmark results published by teams naturally favor their own systems. Independent benchmarking (Fenbushi Capital, a16z zkvm-benchmarks) provides more reliable comparisons.
+  </p>
+
+  <h3>7.2 Ethereum Block Proving (The Primary Benchmark)</h3>
+  <p>
+    Proving Ethereum blocks has become the de facto production benchmark for zkVMs, because: it is a standardized, reproducible workload; it directly measures production readiness; and the Ethereum Foundation has defined a specific target (under 12 seconds per block = "real-time proving") that focuses competition.
+  </p>
+
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="num">6.9s</div>
+      <div class="lbl">Brevis Pico Prism avg (64× RTX 5090, 45M gas)</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">10.3s</div>
+      <div class="lbl">SP1 Hypercube avg (multi-GPU, 36M gas)</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">35s</div>
+      <div class="lbl">Airbender (single H100, 45M gas)</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">44s</div>
+      <div class="lbl">RISC Zero R0VM 2.0 (GPU, full Eth block)</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">~35min</div>
+      <div class="lbl">RISC Zero R0VM 1.0 (2024 baseline)</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-label">Hardware Context Matters</div>
+    <p>Airbender achieves 35s on a <em>single H100 GPU</em>. SP1 Hypercube achieves 10.3s but requires 50–160 GPUs — roughly equivalent H100s by compute. On a per-GPU basis, Airbender is significantly more hardware-efficient. Pico Prism achieves 6.9s on 64× RTX 5090 GPUs (~$128,000 in hardware). The "real-time proving" race is as much about cost-efficiency as raw speed.</p>
+  </div>
+
+  <h3>7.3 Microbenchmarks (CPU, no GPU)</h3>
+  <p>
+    For CPU-only proving (relevant for developers without GPU clusters), the Fenbushi Capital benchmark (August 2025, 8 zkVMs, 4 workloads) provides the most comprehensive independent data:
+  </p>
+
+  <div class="bench-chart">
+    <p style="font-family: var(--sans); font-size: 9pt; color: var(--ink-faint); margin-bottom: 12px;">Relative proving performance (CPU only), lower is better. Normalized to SP1 (CPU) = 100.</p>
+    <div class="bench-row"><div class="bench-label">SP1 (GPU)</div><div class="bench-track"><div class="bench-fill fill-blue" style="width:95%"><span>Fastest</span></div></div><div class="bench-val">~1×</div></div>
+    <div class="bench-row"><div class="bench-label">RISC Zero (GPU)</div><div class="bench-track"><div class="bench-fill fill-blue" style="width:85%"><span>GPU</span></div></div><div class="bench-val">~1.3×</div></div>
+    <div class="bench-row"><div class="bench-label">SP1 (CPU)</div><div class="bench-track"><div class="bench-fill fill-green" style="width:72%"><span>CPU baseline</span></div></div><div class="bench-val">~3×</div></div>
+    <div class="bench-row"><div class="bench-label">OpenVM</div><div class="bench-track"><div class="bench-fill fill-green" style="width:62%"><span></span></div></div><div class="bench-val">~4×</div></div>
+    <div class="bench-row"><div class="bench-label">RISC Zero (CPU)</div><div class="bench-track"><div class="bench-fill fill-green" style="width:58%"><span></span></div></div><div class="bench-val">~5×</div></div>
+    <div class="bench-row"><div class="bench-label">Pico</div><div class="bench-track"><div class="bench-fill fill-amber" style="width:42%"><span></span></div></div><div class="bench-val">~8×</div></div>
+    <div class="bench-row"><div class="bench-label">Jolt</div><div class="bench-track"><div class="bench-fill fill-amber" style="width:30%"><span></span></div></div><div class="bench-val">~14×</div></div>
+    <div class="bench-row"><div class="bench-label">ZKM</div><div class="bench-track"><div class="bench-fill fill-amber" style="width:25%"><span></span></div></div><div class="bench-val">~16×</div></div>
+    <div class="bench-row"><div class="bench-label">Nexus</div><div class="bench-track"><div class="bench-fill fill-gray" style="width:12%"><span></span></div></div><div class="bench-val">~40×</div></div>
+    <div class="bench-row"><div class="bench-label">Novanet</div><div class="bench-track"><div class="bench-fill fill-gray" style="width:8%"><span></span></div></div><div class="bench-val">~60×</div></div>
+  </div>
+
+  <h3>7.4 Performance Bottlenecks by System</h3>
+  <div class="table-wrap">
+    <table>
+      <caption>Table 5. Primary performance bottlenecks by zkVM system</caption>
+      <thead><tr><th>System</th><th>CPU Bottleneck</th><th>Memory Bottleneck</th><th>Scaling Behavior</th></tr></thead>
+      <tbody>
+        <tr><td><strong>SP1 / RISC Zero</strong></td><td>Recursive STARK composition; polynomial commitment (Merkle tree construction)</td><td>Merkle tree for FRI commitment</td><td>Sub-linear with GPU; near-linear CPU-only</td></tr>
+        <tr><td><strong>Jolt</strong></td><td>Lasso sum-check protocol; Spartan proof generation</td><td>MLE construction for lookup tables (very high)</td><td>Poor scaling for complex programs</td></tr>
+        <tr><td><strong>Cairo/Stwo</strong></td><td>Circle STARK FRI; prover recursion</td><td>Moderate (efficient memory model)</td><td>Good with GPU</td></tr>
+        <tr><td><strong>Nexus / Novanet</strong></td><td>Nova folding scheme accumulation</td><td>Folding scheme accumulator (grows with steps)</td><td>Slow; not yet competitive with STARK systems</td></tr>
+        <tr><td><strong>Airbender</strong></td><td>RISC-V simulation (CPU) + witness generation (GPU)</td><td>Low (chunked processing)</td><td>Single-GPU; excellent efficiency</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>7.5 Compiler Optimization and zkVM Performance</h3>
+  <p>
+    A 2025 study systematically evaluated the impact of LLVM optimization passes on SP1 and RISC Zero across 58 benchmarks. The findings are informative: standard LLVM optimization levels improve zkVM performance by over 40% compared to unoptimized code, but far less than on native CPUs — because LLVM optimizations target hardware features (instruction pipelining, cache behavior, branch prediction) that do not exist in the proof model. The most impactful pass was <code>inline</code> (22.4% gain on both systems), because function call overhead in a zkVM is higher than on native hardware. The most harmful pass was <code>licm</code> (loop-invariant code motion), which increases dynamic instruction count by moving code out of loops into preambles that the zkVM cannot optimize away.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 8: APPLICATIONS
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 8</span>
+    <h2>Applications and Use Cases</h2>
+  </div>
+
+  <h3>8.1 Blockchain Scaling: zkRollups</h3>
+  <p>
+    The original and still most deployed use case for zkVMs is Layer 2 scaling. A zkRollup executes transactions off-chain, produces a validity proof that the transactions were processed correctly, and posts only this proof (plus compressed transaction data) to Ethereum Layer 1. The L1 verifier contract checks the proof and updates state accordingly — without re-executing any transaction.
+  </p>
+  <p>
+    This achieves dramatically higher throughput and lower transaction costs. zkSync processes thousands of transactions per second (vs. Ethereum L1's ~15 TPS) at a fraction of the cost. The validity proof provides cryptographic finality — unlike optimistic rollups, which require a 7-day challenge window, zkRollup finality is achieved as soon as the proof is verified on L1 (typically within minutes).
+  </p>
+
+  <h3>8.2 Layer 1 Real-Time Proving</h3>
+  <p>
+    The most ambitious application of zkVMs is proving Ethereum L1 execution in real time — generating a proof for each block as it is produced, so that validators can verify blocks by checking a proof rather than re-executing them. This would allow Ethereum's validator set to include extremely lightweight verifiers, dramatically improving decentralization and enabling a 10–100× increase in L1 throughput.
+  </p>
+  <p>
+    The Ethereum Foundation defines the target as under 12 seconds per block. By October 2025, Brevis Pico Prism became the first zkVM to consistently achieve this on a 45M gas block (the maximum block size). The trajectory from 35 minutes (2024) to 6.9 seconds (2025) represents a 300× improvement in 12 months — one of the most rapid performance scaling curves in applied cryptography.
+  </p>
+
+  <h3>8.3 Cross-Chain Bridges and Light Clients</h3>
+  <p>
+    Trustless bridges between blockchains require proving the state of one chain to another. Traditional bridges use multi-sig federations (trusted, hackable) or optimistic mechanisms (slow). zkVM-based light clients can prove the validity of another chain's block headers in a succinct proof, enabling trustless cross-chain state verification.
+  </p>
+  <p>
+    Celestia's DA attestation proofs, IBC light client proofs, and EigenLayer's AVS (Actively Validated Services) all use this pattern. RISC Zero's zkVM and SP1 are the primary proving backends for these applications, with Polygon and Avail using SP1 for their cross-chain infrastructure.
+  </p>
+
+  <h3>8.4 Privacy-Preserving Identity and Compliance</h3>
+  <p>
+    zkVMs enable a powerful pattern for identity and compliance: prove a fact about yourself (age, residency, creditworthiness, KYC status) without revealing the underlying data. The user generates a proof using their private data as the witness; the verifier sees only the proof and can confirm the statement is true without learning any sensitive information.
+  </p>
+  <p>
+    Applications include: zkKYC (prove you passed identity verification without revealing your passport), privacy voting (prove your vote is valid without revealing how you voted), anonymous credentials (prove organizational membership without revealing identity), and private DeFi (prove you are creditworthy for uncollateralized lending without revealing your balance sheet).
+  </p>
+
+  <h3>8.5 Verifiable AI Inference (ZKML)</h3>
+  <p>
+    As AI systems become critical infrastructure, a new trust problem emerges: how does a user know that a model provider actually ran the claimed model with the claimed weights on the claimed input, without tampering? Zero-knowledge machine learning (ZKML) uses zkVMs to prove the correct execution of ML inference.
+  </p>
+  <p>
+    Practical ZKML faces significant challenges: neural network inference involves billions of multiply-accumulate operations, making proving extremely expensive. However, progress has been rapid. RISC Zero's zkVM has been used to prove transformer inference; Giza (built on Cairo) specializes in ZKML for on-chain AI. The primary application today is proving the output of smaller models (classification networks, recommendation engines) rather than LLMs, but the trend is toward proving increasingly capable models as prover performance improves.
+  </p>
+
+  <h3>8.6 On-Chain Gaming and Covert Computation</h3>
+  <p>
+    zkVMs enable on-chain games with hidden state — chess, poker, strategy games — where moves can be proved valid without revealing the player's information. This is a distinct use case from privacy coins: the goal is not financial privacy but game-theoretic integrity. A player can prove "I moved my knight legally" without revealing where all their pieces are. Projects like Dark Forest (Ethereum, early ZK gaming) pioneered this category.
+  </p>
+
+  <h3>8.7 Supply Chain and Data Provenance</h3>
+  <p>
+    zkVMs can prove facts about data pipelines without revealing the underlying data. A pharmaceutical company can prove that a drug batch was stored at the correct temperature throughout its supply chain, without revealing commercially sensitive routing or supplier information. A financial institution can prove that its trading algorithms executed within regulatory bounds, without revealing proprietary strategy. The "proof of correct computation over private data" pattern is general and applies across industries.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 9: TRILEMMA AND CHALLENGES
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 9</span>
+    <h2>The zkVM Trilemma and Open Challenges</h2>
+  </div>
+
+  <h3>9.1 The zkVM Trilemma</h3>
+  <p>
+    Analogously to the blockchain scalability trilemma (decentralization, security, scalability), zkVM designers face a trilemma among three desirable properties:
+  </p>
+
+  <div class="trilemma-grid">
+    <div class="tri-card">
+      <div class="tri-icon">⚡</div>
+      <div class="tri-name">Speed</div>
+      <div class="tri-desc">Fast proof generation and verification. Sub-second proving for short programs; real-time for block-length computations. GPU parallelism, efficient fields, hardware acceleration.</div>
+    </div>
+    <div class="tri-card">
+      <div class="tri-icon">🔐</div>
+      <div class="tri-name">Security</div>
+      <div class="tri-desc">Sound proofs with high security parameters. No trusted setup. Post-quantum resistance. Formally verified circuits. Resistance to implementation bugs and soundness errors.</div>
+    </div>
+    <div class="tri-card">
+      <div class="tri-icon">🌍</div>
+      <div class="tri-name">Generality</div>
+      <div class="tri-desc">Arbitrary programs in any language. Existing libraries. No custom DSL. Full ISA support including complex memory access patterns, floating point, system calls.</div>
+    </div>
+  </div>
+
+  <p>
+    <strong>ZK-native ISAs</strong> (Cairo, Miden) sacrifice generality for speed — they achieve excellent proving performance but require developers to write in unfamiliar languages and cannot use existing software libraries. <strong>General-purpose RISC-V systems</strong> (SP1, RISC Zero) sacrifice some speed for maximum generality — any Rust program can be proved, but at higher prover cost than a purpose-built circuit. <strong>Lookup-based systems</strong> (Jolt) sacrifice production readiness and GPU efficiency in pursuit of theoretical elegance that may eventually unlock future speed gains.
+  </p>
+  <p>
+    No current system achieves all three simultaneously. The trilemma is a useful lens for understanding design decisions: every architectural choice is a tradeoff within this space.
+  </p>
+
+  <h3>9.2 Open Challenges</h3>
+
+  <p><strong>The memory bottleneck.</strong> As programs become more complex and guest memory grows (RISC Zero supports up to 3 GB), the cost of memory checking operations grows proportionally. Efficient memory checking for very large programs (hundreds of gigabytes) remains an open research problem.</p>
+
+  <p><strong>Floating-point operations.</strong> Standard RISC-V includes a floating-point extension (RV32F/D) that most zkVMs do not support. Proving IEEE 754 floating-point semantics is extremely expensive due to the complex edge cases (NaN propagation, denormalized numbers, rounding modes). This limits zkVMs for scientific computing applications.</p>
+
+  <p><strong>Soundness bugs and circuit verification.</strong> The complexity of zkVM circuits creates opportunities for subtle soundness errors — bugs where the prover can generate a valid-looking proof for an invalid computation. The history of zkEVMs has several examples of such bugs discovered post-deployment. Formal verification of circuits is the gold standard solution but remains incomplete for most systems.</p>
+
+  <p><strong>Front-end field mismatch.</strong> RISC-V programs operate on 32-bit or 64-bit integer words, but zkVM proof arithmetic operates over prime fields (BabyBear: ~2×10⁹). When a RISC-V instruction computes a result that would overflow a 32-bit integer (wrapping modular arithmetic), the zkVM must simulate this behavior in a field where the natural modulus is different. This field mismatch requires careful constraint engineering and is a source of both performance overhead and potential bugs.</p>
+
+  <p><strong>Developer tooling and debugging.</strong> Debugging zkVM programs is fundamentally harder than debugging normal programs. Standard debuggers cannot step through the proof circuit. Errors in ZK programs can be non-deterministic, constraint-system-level, or only apparent at proof generation time. The ecosystem of zkVM-aware debuggers, profilers, and testing frameworks is nascent.</p>
+
+  <p><strong>Prover decentralization.</strong> Most zkVM applications today rely on centralized or semi-centralized provers. Decentralized prover networks (Boundless, Aligned) are being built, but ensuring that the prover market is competitive, resistant to collusion, and achieves timely proof generation at scale remains an engineering and incentive design challenge.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 10: zkVM vs zkCOPROCESSOR
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 10</span>
+    <h2>zkVM vs. zkCoprocessor: Two Paradigms</h2>
+  </div>
+
+  <p>
+    As the verifiable computation ecosystem matures, a structural distinction has emerged between two paradigms for deploying ZK proofs in production: the <em>zkVM</em> (a general-purpose proving engine) and the <em>zkCoprocessor</em> (a specialized, plug-and-play proof service). Understanding this distinction is essential for architects building ZK-powered systems.
+  </p>
+
+  <blockquote>
+    "A zkVM is trustless AWS Lambda — run any code, get a proof. A zkCoprocessor is a blockchain API with proofs — pre-built, optimized, and ready to integrate."
+    <cite>— Web3 ecosystem analogy, degen0x Research (2026)</cite>
+  </blockquote>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Table 6. zkVM vs. zkCoprocessor comparison</caption>
+      <thead><tr><th>Dimension</th><th>zkVM</th><th>zkCoprocessor</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Generality</strong></td><td>Arbitrary programs — prove any logic</td><td>Specific pre-configured computation types</td></tr>
+        <tr><td><strong>Integration</strong></td><td>Compile & prove your own guest program</td><td>SDK/API call — no proof system knowledge needed</td></tr>
+        <tr><td><strong>Performance</strong></td><td>Higher overhead; requires multi-GPU for complex workloads</td><td>Highly optimized for target tasks; lower latency and cost</td></tr>
+        <tr><td><strong>Cost model</strong></td><td>Proving-as-a-Service (infrastructure layer)</td><td>Proof-API-as-a-Service (SaaS, per-task billing)</td></tr>
+        <tr><td><strong>Use case fit</strong></td><td>Novel logic, AI inference, custom algorithms, research</td><td>DeFi analytics, historical state queries, RWA compliance, KYC</td></tr>
+        <tr><td><strong>Circuit complexity</strong></td><td>High (general circuit for arbitrary programs)</td><td>Low (specialized circuit for known operations)</td></tr>
+        <tr><td><strong>Examples</strong></td><td>RISC Zero, SP1, Cairo, Airbender</td><td>Brevis, Axiom, Herodotus, Lagrange</td></tr>
+        <tr><td><strong>Economic logic</strong></td><td>Off-chain proving cheaper than on-chain compute</td><td>Same, plus pre-optimized for maximum efficiency</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>10.1 The zkCoprocessor Architecture</h3>
+  <p>
+    A zkCoprocessor is a pre-built ZK proving service for a specific class of computations. Rather than requiring the application developer to write and prove arbitrary guest code, the zkCoprocessor exposes a typed API: "prove that account X held at least Y ETH at block Z" or "prove that this price feed was above threshold T for N consecutive blocks." The circuit for these specific computations is pre-built and highly optimized; the developer calls the API and receives a proof.
+  </p>
+  <p>
+    Leading zkCoprocessors in the Ethereum ecosystem as of 2026:
+  </p>
+  <ul style="padding-left: 22px; margin-bottom: 14px; font-family: var(--sans); font-size: 10pt; color: var(--ink-mid); line-height: 1.8;">
+    <li><strong>Brevis:</strong> Dual architecture — general zkVM (Pico) for complex tasks plus zkCoprocessor for DeFi/RWA/risk management. First to achieve EF RTP standard.</li>
+    <li><strong>Axiom:</strong> Proves facts about Ethereum's historical state (account balances, storage values, transaction existence, event logs). Uses Halo2 with KZG commitments.</li>
+    <li><strong>Herodotus:</strong> Specializes in historical state access — proving the state of Ethereum at any historical block height.</li>
+    <li><strong>Lagrange:</strong> Cross-chain computation with a ZK + Optimistic hybrid architecture, optimized for cross-chain data availability.</li>
+  </ul>
+
+  <h3>10.2 Which to Choose</h3>
+  <p>
+    The choice between zkVM and zkCoprocessor is primarily driven by the novelty and specificity of the computation to be proved. For computations that fit a well-defined template (historical state queries, liquidity analytics, risk scoring, identity verification), a zkCoprocessor offers faster integration, lower cost, and better performance — the specialized circuit is far more efficient than a general-purpose RISC-V execution environment. For novel computations (custom algorithms, AI inference, new cryptographic protocols, supply chain logic), only a zkVM can provide the required generality.
+  </p>
+  <p>
+    The two paradigms are not mutually exclusive and are increasingly converging. Systems like Brevis integrate both: a general-purpose zkVM backend for complex arbitrary computation, plus a specialized coprocessor interface for high-frequency, production DeFi use cases.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 11: SECURITY
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 11</span>
+    <h2>Security Considerations</h2>
+  </div>
+
+  <h3>11.1 Soundness and its Failure Modes</h3>
+  <p>
+    The security of a zkVM rests on the <em>soundness</em> of its proof system: no cheating prover can generate a valid proof for an invalid execution. Soundness failures — commonly called <em>soundness bugs</em> — allow a malicious prover to convince a verifier of a false statement, potentially stealing funds in a zkRollup or forging identity proofs.
+  </p>
+  <p>
+    Soundness bugs in zkVM circuits typically arise from:
+  </p>
+  <ul style="padding-left: 22px; margin-bottom: 14px; font-family: var(--sans); font-size: 10pt; color: var(--ink-mid); line-height: 1.8;">
+    <li><strong>Under-constrained polynomials:</strong> A constraint is missing, allowing the prover to set a wire to an incorrect value that still satisfies all stated constraints.</li>
+    <li><strong>Range check gaps:</strong> In systems where computations are over a large field but model 32-bit arithmetic, missing range checks allow field elements larger than 2³² to be used where 32-bit integers are expected.</li>
+    <li><strong>Memory consistency errors:</strong> Bugs in the multiset argument for memory checking that allow reads to return incorrect values.</li>
+    <li><strong>Cross-table lookup mismatches:</strong> Inconsistencies between the main CPU trace and chiplet/precompile traces that are not fully enforced by the lookup argument.</li>
+  </ul>
+
+  <h3>11.2 Formal Verification</h3>
+  <p>
+    The complexity of zkVM circuits makes manual auditing insufficient. Formal verification — mathematically proving that a circuit implements its specification — is the gold standard. RISC Zero uses the ZIRGEN language (an internal DSL for circuit specification) and has completed deterministic verification for most RISC-V base circuits. Nexus has invested in formal specification of its entire architecture. The Jolt paper includes formal proofs of the Lasso lookup argument's soundness.
+  </p>
+  <p>
+    Tools for zkVM circuit verification include: the Lean4 proof assistant (used for Jolt's Lasso semantics verification, published at FC '25), Coq-based approaches for arithmetic circuits, and domain-specific SMT-solver based tools like the 2025 Arguzz fuzzer for zkVM soundness testing.
+  </p>
+
+  <h3>11.3 Trusted Setup and Transparency</h3>
+  <p>
+    SNARK systems using KZG polynomial commitments require a <em>trusted setup</em> ceremony — a multi-party computation that generates a structured reference string (SRS). If all participants of the ceremony collude or are compromised, the SRS can be used to generate fake proofs. This is the "toxic waste" problem.
+  </p>
+  <p>
+    STARK systems (using FRI/Merkle-tree commitments) are <em>transparent</em> — no trusted setup is required. The verifier needs only a hash function specification. This is a significant security advantage for long-lived systems where the provenance of a setup ceremony may be hard to audit years later. All major zkVMs (SP1, RISC Zero, Cairo/Stwo, Airbender) use STARK-based backends for this reason, using Groth16 only as a wrapping step where the ceremony risk is manageable and accepted.
+  </p>
+
+  <h3>11.4 Post-Quantum Security</h3>
+  <p>
+    STARK systems are post-quantum secure: their security rests on the collision resistance of hash functions (SHA-256, Poseidon), which are not broken by quantum computers with known algorithms. SNARK systems using elliptic curve pairings (KZG, Groth16) are vulnerable to Shor's algorithm on a sufficiently powerful quantum computer. As quantum computing advances, the transition to post-quantum proof systems is a long-term security consideration. The STARK-based architecture of most production zkVMs provides this property by default, making their security guarantees durable against future quantum adversaries.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 12: FUTURE
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 12</span>
+    <h2>Future Directions and Conclusion</h2>
+  </div>
+
+  <h3>12.1 Near-Term Developments (2026–2028)</h3>
+
+  <p><strong>Ethereum L1 integration.</strong> The Ethereum Foundation's roadmap ("The Verge") includes making every Ethereum validator a zkVM verifier — replacing re-execution with proof checking at the L1 level. This requires real-time proving (achieved in 2025 at the research level) plus integration with Ethereum's consensus and execution clients. The goal is to allow Ethereum to scale throughput dramatically without sacrificing decentralization.</p>
+
+  <p><strong>Proof marketplace commoditization.</strong> RISC Zero's Boundless and similar platforms are building open markets for ZK proof generation. Any application can request a proof; any prover with sufficient hardware can compete to generate it. This commoditizes proof generation, drives down costs, and improves censorship resistance. The economics of proof markets — prover incentives, latency guarantees, MEV in the proof layer — are active research areas.</p>
+
+  <p><strong>Hardware acceleration beyond GPU.</strong> FPGAs and ASICs designed specifically for STARK proving are in development. StarkWare and others have published FPGA implementations of FRI. Purpose-built ZK ASICs could achieve 10–100× speedups over GPU implementations, potentially enabling real-time proving on consumer hardware — a radical democratization of proof generation.</p>
+
+  <p><strong>Binius and binary field proving.</strong> Binius, a polynomial commitment scheme over binary fields (F₂), promises dramatically faster field arithmetic by leveraging hardware-native bitwise operations. Several teams are prototyping Binius-based zkVMs; if the performance gains materialize, Binius may replace BabyBear-field STARKs as the dominant approach.</p>
+
+  <h3>12.2 Long-Term Vision: zkVMs as Invisible Infrastructure</h3>
+  <p>
+    The trajectory of zkVM technology points toward a world where proof generation is as invisible and ubiquitous as TLS encryption. Today, every secure web request is encrypted — users never think about it. In a zkVM-enabled future, every computation delegated to an untrusted party would be accompanied by a proof of correctness — applications would never think about it either. The zkVM would be a layer in the infrastructure stack, invisible to application developers but foundational to the trust architecture of distributed systems.
+  </p>
+  <p>
+    This vision — ZK everywhere — is not science fiction. The rate of performance improvement in zkVM technology from 2022 to 2026 rivals Moore's Law: proving time for an Ethereum block has improved by roughly 3,000× (from ~100 hours equivalent to ~35 seconds) in four years. At this rate, within a decade, proving a block-length computation in under one second on consumer hardware is plausible.
+  </p>
+
+  <h3>12.3 Conclusion</h3>
+  <p>
+    Zero-knowledge virtual machines represent a convergence of three decades of theoretical work in interactive proof systems, polynomial commitments, and algebraic complexity theory with practical engineering driven by the demand for scalable, trustless computation in blockchain ecosystems. The result is a technology that is simultaneously: theoretically deep (resting on hardness assumptions with rigorous proofs), practically valuable (enabling Ethereum to process thousands of transactions per second with cryptographic finality), and socially significant (enabling privacy-preserving identity, compliance, and computation at scale).
+  </p>
+  <p>
+    The field is moving extraordinarily fast. The primary challenges — proving speed, developer experience, formal verification, and hardware accessibility — are all being actively addressed by well-funded teams and world-class cryptographers. The architectural patterns described in this paper — RISC-V ISA, AIR arithmetization over BabyBear, FRI-STARK proving, recursive composition, precompile acceleration, and decentralized proof markets — are likely to persist as the dominant approach through the near term, even as specific implementations evolve.
+  </p>
+  <p>
+    For a ZK engineering student, the most important takeaway is not the specific systems or benchmarks — those will change — but the underlying design principles: the tradeoffs between generality and efficiency, the role of arithmetization in converting computation to provable constraints, the distinction between succinctness and zero-knowledge, and the emerging ecosystem architecture of zkVMs, zkCoprocessors, and proof markets. These principles will remain relevant regardless of which specific zkVM dominates in five years.
+  </p>
+
+  <div class="callout success">
+    <div class="callout-label">For the ZK Developer</div>
+    <p>The best way to internalize zkVMs is to build with them. Start with RISC Zero's "Hello World" guest program or SP1's quickstart — prove a Fibonacci computation in under 30 minutes. Then explore precompiles by proving an ECDSA signature verification. Then read the RISC Zero ZIRGEN specification to understand what the prover is actually doing. The gap between reading about zkVMs and deeply understanding them closes quickly when you have a working proof in front of you.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     SECTION 13: PRACTICAL IMPLEMENTATION
+═══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-rule">
+    <span class="section-num">§ 13</span>
+    <h2>Practical Implementation: Building on SP1</h2>
+  </div>
+
+  <p>
+    The theoretical architecture described in earlier sections is best understood through direct implementation. This section documents the hands-on work undertaken as part of this research: cloning and studying the SP1 source codebase, exploring its internal architecture, and building three original zkVM programs of increasing complexity. All programs were developed on the SP1 v6.1.0 source, compiled against the <code>riscv64im-succinct-zkvm-elf</code> target using the <code>succinct</code> Rust toolchain, and executed on CPU-mode proving (no GPU).
+  </p>
+
+  <h3>13.1 Environment Setup: Building from Source</h3>
+  <p>
+    Rather than using pre-built binaries, the SP1 toolchain was installed from source to enable direct inspection of the codebase. The full installation sequence was:
+  </p>
+
+  <div class="math-block">
+# Clone the SP1 source repository
+git clone https://github.com/succinctlabs/sp1.git
+
+# Install the cargo-prove CLI from source (~3m 30s build time)
+cd sp1/crates/cli
+cargo install --locked --force --path .
+
+# Download the pre-built succinct Rust toolchain
+cargo prove install-toolchain
+
+# Verify installation
+rustup toolchain list | grep succinct
+# → succinct</div>
+
+  <p>
+    Two system dependencies not covered in the standard Rust toolchain were required: <strong>Go</strong> (for the <code>sp1-recursion-gnark-ffi</code> crate, which interfaces with gnark's Groth16 implementation) and <strong>protoc</strong> (Protocol Buffers compiler, required by <code>sp1-prover-types</code> for gRPC definitions). Both were installed via Homebrew. This reflects a real architectural detail: SP1's final Groth16 wrapper is implemented in Go using the gnark library, called from Rust via FFI.
+  </p>
+
+  <h3>13.2 Exploring the SP1 Source Architecture</h3>
+  <p>
+    The SP1 source is organised into a monorepo with two primary areas: <code>crates/</code> (the core SP1 components) and <code>slop/crates/</code> (low-level cryptographic primitives: field arithmetic, Merkle trees, FRI, sumcheck, multilinear extensions). The architecture maps directly onto the four-layer model described in §4:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Table 7. SP1 source crate mapping to architectural layers</caption>
+      <thead><tr><th>Layer</th><th>Crate Path</th><th>Key Type</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><strong>ISA / Opcodes</strong></td><td><code>crates/core/executor/src/opcode.rs</code></td><td><code>enum Opcode</code></td><td>Defines ~50 RISC-V opcodes (ADD, SUB, MUL, XOR…)</td></tr>
+        <tr><td><strong>Executor / VM</strong></td><td><code>crates/core/executor/src/vm.rs</code></td><td><code>struct CoreVM</code></td><td>RISC-V interpreter; holds registers, PC, clock, memory</td></tr>
+        <tr><td><strong>Execution Record</strong></td><td><code>crates/core/executor/src/record.rs</code></td><td><code>struct ExecutionRecord</code></td><td>Per-opcode event lists: <code>add_events</code>, <code>mul_events</code>…</td></tr>
+        <tr><td><strong>AIR Chips</strong></td><td><code>crates/core/machine/src/alu/</code></td><td><code>struct AddChip</code></td><td>Generates trace matrix; enforces polynomial constraints</td></tr>
+        <tr><td><strong>STARK Prover</strong></td><td><code>crates/prover/</code></td><td><code>SP1Prover</code></td><td>Runs FRI over the trace; produces core STARK proof</td></tr>
+        <tr><td><strong>Recursion</strong></td><td><code>crates/recursion/</code></td><td>recursion circuit</td><td>Compresses shard proofs into a single final receipt</td></tr>
+        <tr><td><strong>SDK</strong></td><td><code>crates/sdk/</code></td><td><code>ProverClient</code></td><td>Developer-facing API: setup, prove, verify</td></tr>
+        <tr><td><strong>zkVM Guest</strong></td><td><code>crates/zkvm/entrypoint/</code></td><td><code>sp1_zkvm::io</code></td><td>Guest-side: <code>read()</code>, <code>commit()</code>, <code>commit_slice()</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Examining <code>AddChip</code> in <code>crates/core/machine/src/alu/add_sub/add.rs</code> reveals the concrete structure of an AIR chip. It implements two trait methods: <code>generate_trace_into()</code> — which fills a matrix row for every ADD event in the <code>ExecutionRecord</code> — and <code>eval()</code> — which defines the polynomial constraints the STARK prover must satisfy. The <code>eval()</code> body constrains: the addition result (<code>AddOperation</code>), the CPU state transition (PC increments by 4, clock by 8), and register read/write consistency via <code>RTypeReader</code>. Every opcode in the VM has a corresponding chip of this form. The execution record is the bridge: the executor fills it during program execution; the chips consume it during proving.
+  </p>
+
+  <div class="callout info">
+    <div class="callout-label">Key Observation</div>
+    <p>SP1's <code>ExecutionRecord</code> holds one <code>Vec</code> per opcode type (<code>add_events</code>, <code>sub_events</code>, <code>mul_events</code>, <code>bitwise_events</code>, etc.). This is not incidental — it reflects the AIR architecture. Each chip only processes its own event type; chips run independently in parallel. The prover's throughput scales with the number of distinct operation types that can be proved concurrently, which is why GPU parallelism is so effective for SP1.</p>
+  </div>
+
+  <h3>13.3 Program 1 — ZK Password Verifier</h3>
+
+  <h4>Concept</h4>
+  <p>
+    The first program demonstrates the fundamental zero-knowledge property: proving knowledge of a secret without revealing it. A SHA-256 hash of a private password is committed as a public output. The verifier receives only the hash; the password itself is never part of the proof. This models practical applications such as zkKYC (prove you passed identity verification without revealing your credentials) and anonymous authentication.
+  </p>
+
+  <h4>Guest Program</h4>
+  <div class="math-block">
+#![no_main]
+sp1_zkvm::entrypoint!(main);
+use sha2::{Digest, Sha256};
+
+pub fn main() {
+    // PRIVATE: read secret password — never committed to proof
+    let password = sp1_zkvm::io::read::&lt;String&gt;();
+
+    // Hash it with SHA-256 inside the zkVM
+    let mut hasher = Sha256::new();
+    hasher.update(password.as_bytes());
+    let hash = hasher.finalize();
+
+    // PUBLIC: commit only the hash — not the password
+    sp1_zkvm::io::commit_slice(&amp;hash);
+}</div>
+
+  <p>
+    The SHA-256 computation uses SP1's patched version of the <code>sha2</code> crate (<code>patch-sha2-0.10.8-sp1-6.0.0</code>), which routes the hash computation through SP1's SHA-256 precompile. Rather than executing SHA-256 as thousands of individual RISC-V instructions, the precompile handles the entire compression function in a single optimised circuit invocation — reducing cycle count by approximately 10× compared to a naïve implementation (see §4.5).
+  </p>
+
+  <h4>Execution Results</h4>
+  <div class="math-block">
+$ RUST_LOG=warn cargo run --release -- --execute --password "zk-masterclass-2024"
+
+Password:  [HIDDEN — known only to the prover]
+SHA-256 hash (public): 0xffeac3c39129deca79a5e8368df147a86785453ba8c4968bfe15f809f8173887
+Execution cycles:       2,748
+zkVM confirms: SHA256(password) = 0xffeac3c3...f8173887</div>
+
+  <div class="math-block">
+$ RUST_LOG=warn cargo run --release -- --prove --password "zk-masterclass-2024"
+
+Password:  [HIDDEN — known only to the prover]
+Generating ZK proof...
+Public output (hash):  0xffeac3c39129deca79a5e8368df147a86785453ba8c4968bfe15f809f8173887
+Proof generated!
+Proof verified!
+
+The verifier is convinced:
+  → The prover knows a password whose SHA-256 is 0xffeac3c3...f8173887
+  → The verifier learned NOTHING about the password itself.
+  → This is zero-knowledge.</div>
+
+  <p>
+    Proof generation time on CPU: approximately 10 seconds. The 2,748 cycle count reflects the precompile advantage — a naïve RISC-V SHA-256 implementation would consume approximately 28,000 cycles for the same input.
+  </p>
+
+  <h3>13.4 Program 2 — ZK Age Verifier</h3>
+
+  <h4>Concept</h4>
+  <p>
+    The second program models a real-world compliance scenario: proving that a person meets a minimum age requirement without revealing their actual birth year or age. This pattern directly applies to DeFi KYC, age-gated content platforms, and on-chain identity systems where revealing exact age constitutes a privacy violation.
+  </p>
+
+  <h4>Guest Program</h4>
+  <div class="math-block">
+#![no_main]
+sp1_zkvm::entrypoint!(main);
+
+pub fn main() {
+    // PRIVATE — never in the proof
+    let birth_year = sp1_zkvm::io::read::&lt;u32&gt;();
+
+    // PUBLIC — verifier agrees on these parameters
+    let current_year = sp1_zkvm::io::read::&lt;u32&gt;();   // 2026
+    let minimum_age  = sp1_zkvm::io::read::&lt;u32&gt;();   // 18
+
+    // Computation proven inside the zkVM
+    let age         = current_year.saturating_sub(birth_year);
+    let is_eligible = age &gt;= minimum_age;
+
+    // PUBLIC outputs — actual age and birth year stay hidden
+    sp1_zkvm::io::commit(&amp;is_eligible);
+    sp1_zkvm::io::commit(&amp;minimum_age);
+    sp1_zkvm::io::commit(&amp;current_year);
+}</div>
+
+  <h4>Execution Results</h4>
+  <div class="math-block">
+$ RUST_LOG=warn cargo run --release -- --prove --birth-year 1995
+
+══════════════════════════════════════════════════
+  ZK Age Verifier  —  Powered by SP1 zkVM
+══════════════════════════════════════════════════
+
+  [PRIVATE]  Birth year   : ████  ← hidden from verifier
+  [PUBLIC]   Current year : 2026
+  [PUBLIC]   Minimum age  : 18+
+
+  Generating ZK proof...
+
+══════════════════════════════════════════════════
+  PROOF RESULT
+══════════════════════════════════════════════════
+  RESULT      : ✅  ELIGIBLE
+  Claim       : Person is 18+ years old as of 2026
+  Birth year  : ████  (cryptographically hidden)
+
+══════════════════════════════════════════════════
+  VERIFICATION PASSED ✅
+══════════════════════════════════════════════════
+  → This person is 18+ years old as of 2026
+  → Their actual birth year is NEVER revealed
+  → This is Zero-Knowledge Proof in action</div>
+
+  <p>
+    Execution cycle count: 1,703 — lower than Program 1 because no cryptographic hash is involved; the computation is pure integer arithmetic. The verifier's knowledge is strictly bounded to the boolean eligibility result: they learn that <code>2026 − birth_year ≥ 18</code>, but cannot determine <code>birth_year</code> from the proof.
+  </p>
+
+  <h3>13.5 Program 3 — ZK Human Verifier</h3>
+
+  <h4>Concept</h4>
+  <p>
+    The third program extends the age verifier to a multi-criteria human eligibility system. Three independent checks are performed inside the zkVM — age threshold, credit score threshold, and citizenship whitelist membership — and the result of each is committed independently. The verifier learns exactly which checks passed and which failed, but not the underlying values. Five test subjects with deliberately varied profiles were used to demonstrate all failure modes.
+  </p>
+
+  <h4>Guest Program</h4>
+  <div class="math-block">
+#![no_main]
+sp1_zkvm::entrypoint!(main);
+
+pub fn main() {
+    // PRIVATE inputs — never appear in proof
+    let age: u32          = sp1_zkvm::io::read::&lt;u32&gt;();
+    let credit_score: u32 = sp1_zkvm::io::read::&lt;u32&gt;();
+    let citizen_id: u32   = sp1_zkvm::io::read::&lt;u32&gt;();
+
+    // PUBLIC inputs — verifier agrees on these rules
+    let min_age: u32        = sp1_zkvm::io::read::&lt;u32&gt;();      // 18
+    let min_credit: u32     = sp1_zkvm::io::read::&lt;u32&gt;();      // 600
+    let whitelist: [u32; 5] = sp1_zkvm::io::read::&lt;[u32; 5]&gt;(); // registered IDs
+
+    // Verification logic — proven inside the zkVM
+    let age_ok     = age &gt;= min_age;
+    let credit_ok  = credit_score &gt;= min_credit;
+    let citizen_ok = whitelist.contains(&amp;citizen_id);
+    let all_passed = age_ok &amp;&amp; credit_ok &amp;&amp; citizen_ok;
+
+    // PUBLIC outputs — actual values stay hidden
+    sp1_zkvm::io::commit(&amp;age_ok);
+    sp1_zkvm::io::commit(&amp;credit_ok);
+    sp1_zkvm::io::commit(&amp;citizen_ok);
+    sp1_zkvm::io::commit(&amp;all_passed);
+}</div>
+
+  <h4>Test Subjects</h4>
+  <div class="table-wrap">
+    <table>
+      <caption>Table 8. Test subjects for ZK Human Verifier — private data (visible to prover only)</caption>
+      <thead><tr><th>Subject</th><th>Age (private)</th><th>Credit Score (private)</th><th>Citizen ID (private)</th><th>Expected Result</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Alice</strong></td><td>28</td><td>750</td><td>1001 (on whitelist)</td><td class="check">✅ All pass</td></tr>
+        <tr><td><strong>Bob</strong></td><td>16</td><td>720</td><td>1002 (on whitelist)</td><td class="cross">❌ Age fails</td></tr>
+        <tr><td><strong>Charlie</strong></td><td>35</td><td>450</td><td>1003 (on whitelist)</td><td class="cross">❌ Credit fails</td></tr>
+        <tr><td><strong>Diana</strong></td><td>22</td><td>680</td><td>9999 (not on list)</td><td class="cross">❌ Citizenship fails</td></tr>
+        <tr><td><strong>Eve</strong></td><td>19</td><td>390</td><td>8888 (not on list)</td><td class="cross">❌ Credit + citizenship fail</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>Execution Results (Execute Mode — All Subjects)</h4>
+  <div class="math-block">
+$ RUST_LOG=warn cargo run --release -- --all
+
+══════════════════════════════════════════════════
+  ZK HUMAN VERIFIER  —  Powered by SP1 zkVM
+══════════════════════════════════════════════════
+  Rules: Age 18+,  Credit 600+,  Registered citizen
+
+  SUBJECT: ALICE
+  ────────────────────────────────────────────────
+  [PRIVATE]  Age: ████  Credit: ████  ID: ████
+  ✅  Age meets minimum (18+)
+  ✅  Credit score meets minimum (600+)
+  ✅  Registered citizen (on whitelist)
+  RESULT: ✅  VERIFIED — Alice is cleared
+
+  SUBJECT: BOB
+  ────────────────────────────────────────────────
+  ❌  Age meets minimum (18+)
+  ✅  Credit score meets minimum (600+)
+  ✅  Registered citizen (on whitelist)
+  RESULT: ❌  REJECTED — Bob did not pass all checks
+
+  SUBJECT: CHARLIE
+  ────────────────────────────────────────────────
+  ✅  Age meets minimum (18+)
+  ❌  Credit score meets minimum (600+)
+  ✅  Registered citizen (on whitelist)
+  RESULT: ❌  REJECTED — Charlie did not pass all checks
+
+  SUBJECT: DIANA
+  ────────────────────────────────────────────────
+  ✅  Age meets minimum (18+)
+  ✅  Credit score meets minimum (600+)
+  ❌  Registered citizen (on whitelist)
+  RESULT: ❌  REJECTED — Diana did not pass all checks
+
+  SUBJECT: EVE
+  ────────────────────────────────────────────────
+  ✅  Age meets minimum (18+)
+  ❌  Credit score meets minimum (600+)
+  ❌  Registered citizen (on whitelist)
+  RESULT: ❌  REJECTED — Eve did not pass all checks</div>
+
+  <p>
+    The verifier receives four boolean values per subject — <code>age_ok</code>, <code>credit_ok</code>, <code>citizen_ok</code>, <code>all_passed</code> — and a cryptographic proof that these values were computed correctly from the subject's private data against the stated public rules. The verifier cannot determine any subject's actual age, credit score, or citizen ID from the proof. This is the selective disclosure pattern: reveal the conclusion, conceal the evidence.
+  </p>
+
+  <h3>13.6 Observations and Lessons</h3>
+
+  <div class="table-wrap">
+    <table>
+      <caption>Table 9. Observed metrics across the three implemented programs</caption>
+      <thead><tr><th>Program</th><th>Private Inputs</th><th>Public Outputs</th><th>Cycles (execute)</th><th>Prove time (CPU)</th><th>Key ZK Property</th></tr></thead>
+      <tbody>
+        <tr><td><strong>ZK Password</strong></td><td>password string</td><td>SHA-256 hash (32 bytes)</td><td>2,748</td><td>~10s</td><td>Hash preimage secrecy</td></tr>
+        <tr><td><strong>ZK Age</strong></td><td>birth year</td><td>eligibility bool + params</td><td>1,703</td><td>~10s</td><td>Threshold proof without revelation</td></tr>
+        <tr><td><strong>ZK Human</strong></td><td>age, credit, citizen ID</td><td>4 booleans per subject</td><td>&lt;2,000</td><td>~10s</td><td>Multi-criteria selective disclosure</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Several practical observations emerged from this implementation work:
+  </p>
+
+  <p><strong>The host/guest separation is the key developer abstraction.</strong> In all three programs, the complex orchestration (setting up the prover, managing inputs, reading public outputs, verifying the proof) lives in the host and is never proved. Only the minimal computation that requires trustless verification — the SHA-256 hash, the comparison against thresholds, the whitelist lookup — lives in the guest. Keeping the guest lean directly reduces cycle count and proving time.</p>
+
+  <p><strong>The precompile advantage is concrete.</strong> Program 1 uses SP1's SHA-256 precompile via the patched <code>sha2</code> crate. The 2,748 cycle count would be approximately 28,000 cycles without the precompile — a 10× difference that directly maps to 10× slower proving. For production applications dominated by hashing or elliptic curve operations, choosing the right crate version (and ensuring the workspace patch applies) is a critical performance decision.</p>
+
+  <p><strong>Proof generation time is dominated by prover initialization, not computation.</strong> All three programs required approximately 10 seconds to prove on CPU. The actual program is small (under 3,000 cycles). The initialization cost — loading the proving key, setting up the STARK parameters, running the FRI commitment — dominates at this scale. For larger programs (millions of cycles), the amortised cost per cycle becomes much lower, which is why zkVMs are best suited to batch processing of significant workloads.</p>
+
+  <p><strong>The zero-knowledge property is architectural, not incidental.</strong> In all three programs, the private inputs are never committed, logged, or accessible to the verifier — not because we carefully avoided exposing them, but because the SP1 guest model enforces this structurally. <code>sp1_zkvm::io::read()</code> feeds data into the witness (private); <code>sp1_zkvm::io::commit()</code> exposes data in the journal (public). The boundary between private and public is explicit in the API. This architectural clarity is one of SP1's strongest developer experience contributions.</p>
+
+  <div class="callout success">
+    <div class="callout-label">Implementation Summary</div>
+    <p>Three working zkVM programs were implemented and proved on SP1 v6.1.0, built from source. The programs demonstrate hash preimage secrecy, threshold proof without value revelation, and multi-criteria selective disclosure — covering the core zero-knowledge patterns described in §8.4. All source code and proof outputs are reproducible using the <code>succinct</code> Rust toolchain and CPU-mode proving with no GPU required.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     REFERENCES
+═══════════════════════════════════════════════════════ -->
+<hr class="footnote-rule">
+<div class="footnote-section">
+  <h4>References</h4>
+  <ol class="ref-list">
+    <li>Ben-Sasson, E., Chiesa, A., Genkin, D., Tromer, E., Virza, M. (2013). <em>SNARKs for C: Verifying Program Executions Succinctly and in Zero Knowledge.</em> CRYPTO 2013.</li>
+    <li>Ben-Sasson, E., Bentov, I., Horesh, Y., Riabzev, M. (2018). <em>Scalable, transparent, and post-quantum secure computational integrity.</em> IACR ePrint 2018/046.</li>
+    <li>Goldwasser, S., Micali, S., Rackoff, C. (1989). <em>The knowledge complexity of interactive proof systems.</em> SIAM Journal on Computing, 18(1), 186–208.</li>
+    <li>Arun, A., Setty, S., Thaler, J. (2023). <em>Jolt: SNARKs for virtual machines via lookups.</em> IACR ePrint 2023/1217.</li>
+    <li>Blum, M., Evans, W., Gemmell, P., Kannan, S., Naor, M. (1994). <em>Checking the Correctness of Memories.</em> Algorithmica 12(2–3): 225–244.</li>
+    <li>Setty, S. (2020). <em>Spartan: Efficient and general-purpose zkSNARKs without trusted setup.</em> CRYPTO 2020.</li>
+    <li>Groth, J. (2016). <em>On the Size of Pairing-Based Non-interactive Arguments.</em> EUROCRYPT 2016.</li>
+    <li>Gabizon, A., Williamson, Z., Ciobotaru, O. (2019). <em>PLONK: Permutations over Lagrange-bases for Oecumenical Noninteractive arguments of Knowledge.</em> IACR ePrint 2019/953.</li>
+    <li>Kate, A., Zaverucha, G. M., Goldberg, I. (2010). <em>Constant-Size Commitments to Polynomials and Their Applications.</em> ASIACRYPT 2010.</li>
+    <li>Ben-Sasson, E., et al. (2023). <em>Circle STARKs.</em> IACR ePrint 2024/278.</li>
+    <li>Succinct Labs. (2025). <em>SP1: A performant, 100% open-source, contributor-friendly zkVM.</em> github.com/succinctlabs/sp1.</li>
+    <li>RISC Zero. (2025). <em>RISC Zero zkVM documentation and R0VM 2.0 release notes.</em> dev.risczero.com.</li>
+    <li>Matter Labs. (2025). <em>Airbender: The fastest RISC-V zkVM for Ethereum block proving.</em> github.com/matter-labs/zksync-airbender.</li>
+    <li>Nexus Labs. (2025). <em>Nexus zkVM specification.</em> docs.nexus.xyz.</li>
+    <li>Fenbushi Capital. (August 2025). <em>Benchmarking zkVMs: Current State and Prospects.</em> fenbushi.vc.</li>
+    <li>Liu, J. H. (August 2025). <em>Comparative Analysis of SP1 and RISC Zero.</em> Medium.</li>
+    <li>Brevis Research. (October 2025). <em>Pico Prism — 99.6% Real-Time Proving for 45M Gas Ethereum Blocks.</em> brevis.network.</li>
+    <li>Kwan, C., Dao, Q., Thaler, J. (2025). <em>Verifying Jolt zkVM Lookup Semantics.</em> Financial Cryptography 2025.</li>
+    <li>Gassmann, T. (2025). <em>Evaluating Compiler Optimization Impacts on zkVM Performance.</em> arXiv:2508.17518.</li>
+    <li>Hochrainer, C., Wüstholz, V., Christakis, M. (2025). <em>Arguzz: Testing zkVMs for Soundness and Completeness Bugs.</em> arXiv:2509.10819.</li>
+    <li>Berkeley EECS Technical Reports. (2025). <em>Constraint-Efficient Techniques for Zero-Knowledge Virtual Machines.</em> EECS-2025-215.</li>
+    <li>Vac Research / Logos. (August 2024). <em>Exploring zkVMs: Which Projects Truly Qualify?</em> research.logos.co.</li>
+    <li>a16z crypto. (2024). <em>zkvm-benchmarks: Benchmarks of popular zkVMs including Jolt.</em> github.com/a16z/zkvm-benchmarks.</li>
+    <li>Buterin, V. (2022). <em>The different types of ZK-EVMs.</em> vitalik.eth.limo.</li>
+    <li>Lita Foundation. (2024). <em>What is zkVM? A Zero Knowledge Paradigm.</em> lita.foundation/blog.</li>
+  </ol>
+</div>
+
+<hr class="footnote-rule">
+<div style="text-align: center; font-family: var(--sans); font-size: 8.5pt; color: var(--ink-faint); margin-top: 20px;">
+  <p>Web3Bridge ZK Cohort · Final Research Paper · May 2026</p>
+  <p style="margin-top: 4px;">Ekezie Uchenna &amp; Goddswill Idolor · Zero-Knowledge Virtual Machines: Architecture, Systems, and the Future of Verifiable Computation</p>
+</div>
+
+</div>
+</body>
+</html>

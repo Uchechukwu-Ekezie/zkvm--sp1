@@ -1,0 +1,13 @@
+[package]
+name = "zkhuman-script"
+version = { workspace = true }
+edition = { workspace = true }
+publish = false
+
+[dependencies]
+sp1-sdk = { workspace = true }
+clap    = { version = "4.0", features = ["derive"] }
+dotenv  = "0.15"
+
+[build-dependencies]
+sp1-build = { workspace = true }

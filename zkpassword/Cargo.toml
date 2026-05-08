@@ -1,0 +1,15 @@
+[workspace]
+members = ["program", "script"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+sp1-build = { path = "../sp1/crates/build" }
+sp1-sdk    = { path = "../sp1/crates/sdk", features = ["blocking"] }
+sp1-zkvm   = { path = "../sp1/crates/zkvm/entrypoint", features = ["lib"] }
+
+[patch.crates-io]
+sha2-v0-10-8 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", tag = "patch-sha2-0.10.8-sp1-6.0.0" }

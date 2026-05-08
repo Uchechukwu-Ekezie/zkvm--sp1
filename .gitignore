@@ -1,0 +1,9 @@
+# SP1 upstream source — not our code
+sp1/
+
+# Rust build artifacts
+target/
+Cargo.lock
+
+# macOS
+.DS_Store

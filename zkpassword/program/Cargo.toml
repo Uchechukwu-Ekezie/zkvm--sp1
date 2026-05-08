@@ -1,0 +1,9 @@
+[package]
+name = "zkpassword-program"
+version = { workspace = true }
+edition = { workspace = true }
+publish = false
+
+[dependencies]
+sp1-zkvm = { workspace = true }
+sha2 = { version = "0.10", default-features = false }
