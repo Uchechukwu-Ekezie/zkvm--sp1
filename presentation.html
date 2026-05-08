@@ -488,32 +488,39 @@ tbody tr:last-child td { border-bottom: none; }
 <div class="slide bg-cream">
   <div class="topbar"></div>
   <div class="main" style="padding:36px 80px">
-    <span class="label">How SP1 handles programs of unlimited length</span>
-    <h2>Recursion & Continuations — <span class="ac">no ceiling on program length</span></h2>
+    <span class="label">How SP1 proves programs of any length</span>
+    <h2>Continuations — <span class="ac">breaking a long proof into chapters</span></h2>
     <div class="rule"></div>
-    <p class="body" style="margin-bottom:14px">A STARK proof for N cycles grows as O(log²N). For a billion-cycle program, even polylogarithmic growth is a problem. SP1 uses <b>continuations</b>: slice the program into 16M–64M cycle segments, prove each independently, then recursively aggregate into one fixed-size final proof.</p>
-    <div style="background:#0d1117;border-radius:8px;border:1px solid #30363d;padding:16px 22px;font-family:'JetBrains Mono',monospace;font-size:clamp(12px,1.3vw,14px);line-height:1.9;color:#e6edf3;margin-bottom:18px"><span style="color:#6e7681">// Final proof: constant size regardless of N</span>
-<span style="color:#79c0ff">Proof_final</span> = Prove(
-  Verify(<span style="color:#3fb950">Proof_seg_1</span>) ∧  <span style="color:#6e7681">// first 64M cycles</span>
-  Verify(<span style="color:#3fb950">Proof_seg_2</span>) ∧  <span style="color:#6e7681">// next 64M cycles</span>
-  Verify(<span style="color:#3fb950">Proof_seg_N</span>)    <span style="color:#6e7681">// ... N segments</span>
-)</div>
-    <div class="role-grid" style="margin-top:0">
-      <div class="role blue">
-        <div class="rtag">SP1 / RISC Zero</div>
-        <h3>Continuation-Based</h3>
-        <p>Segment → STARK proof → recursive aggregation. One final Groth16 wrap for cheap on-chain verification. Arbitrary program length. No ceiling.</p>
+    <p class="body" style="margin-bottom:24px">A ZK proof can only cover a limited number of steps at once — like a camera with a limited film roll. But real programs run for <b>millions or billions of steps</b>. SP1 solves this the same way you audit a long book:</p>
+
+    <div style="display:grid;grid-template-columns:1fr 40px 1fr 40px 1fr 40px 1fr;align-items:center;gap:0;margin-bottom:24px">
+      <div style="background:#eff6ff;border:2px solid #1d4ed8;border-radius:10px;padding:20px 16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">📖</div>
+        <div style="font-size:17px;font-weight:700;color:#1d4ed8;margin-bottom:4px">Chapter 1</div>
+        <div style="font-size:15px;color:#374151">Steps 1–64M<br>→ Proof ✓</div>
       </div>
-      <div class="role purple">
-        <div class="rtag">Nova / HyperNova</div>
-        <h3>Folding Schemes</h3>
-        <p>Incrementally fold instances without full recursion. Elegant theory; today's systems (Nexus) have larger proofs and slower generation than STARK continuations.</p>
+      <div style="text-align:center;font-size:26px;color:#d1d5db">→</div>
+      <div style="background:#eff6ff;border:2px solid #1d4ed8;border-radius:10px;padding:20px 16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">📖</div>
+        <div style="font-size:17px;font-weight:700;color:#1d4ed8;margin-bottom:4px">Chapter 2</div>
+        <div style="font-size:15px;color:#374151">Steps 64M–128M<br>→ Proof ✓</div>
       </div>
-      <div class="role green">
-        <div class="rtag">Production Impact</div>
-        <h3>Why It Matters</h3>
-        <p>Proving an Ethereum block = millions of EVM instructions → multiple continuation segments → one aggregated receipt. This is why SP1 can prove full Ethereum blocks at all.</p>
+      <div style="text-align:center;font-size:26px;color:#d1d5db">→</div>
+      <div style="background:#eff6ff;border:2px solid #1d4ed8;border-radius:10px;padding:20px 16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">📖</div>
+        <div style="font-size:17px;font-weight:700;color:#1d4ed8;margin-bottom:4px">Chapter N</div>
+        <div style="font-size:15px;color:#374151">Final steps<br>→ Proof ✓</div>
       </div>
+      <div style="text-align:center;font-size:26px;color:#d1d5db">→</div>
+      <div style="background:#f0fdf4;border:2px solid #059669;border-radius:10px;padding:20px 16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">🧾</div>
+        <div style="font-size:17px;font-weight:700;color:#059669;margin-bottom:4px">One Final Proof</div>
+        <div style="font-size:15px;color:#374151">All chapters<br>verified ✓</div>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>The key insight:</b> Each chapter is proved separately. Then SP1 produces one final proof that says <b>"all chapters are correct and connect in the right order."</b> The final proof is the same small size whether the program ran for 1 million or 1 billion steps. This is how SP1 proves an entire Ethereum block — millions of instructions — in one receipt.
     </div>
   </div>
   <div class="footer">
